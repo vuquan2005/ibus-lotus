@@ -380,8 +380,6 @@ func GetInputModePropListByConfig(c *config.Config) *ibus.PropList {
 	var options = []string{
 		"1. Pre-edit (có gạch chân)",
 		"2. Surrounding Text (không gạch chân)",
-		"3. ForwardKeyEvent I (không gạch chân)",
-		"4. ForwardKeyEvent II (không gạch chân)",
 	}
 	for i, option := range options {
 		var mode = i + 1

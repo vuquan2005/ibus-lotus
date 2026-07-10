@@ -3,23 +3,17 @@ package config
 const (
 	PreeditIM = iota + 1
 	SurroundingTextIM
-	BackspaceForwardingIM
-	ShiftLeftForwardingIM
 	UsIM
 )
 
 var ImLookupTable = map[int]string{
 	PreeditIM:             "Cấu hình mặc định (Pre-edit)",
 	SurroundingTextIM:     "Sửa lỗi gạch chân (Surrounding Text)",
-	BackspaceForwardingIM: "Sửa lỗi gạch chân (ForwardKeyEvent I)",
-	ShiftLeftForwardingIM: "Sửa lỗi gạch chân (ForwardKeyEvent II)",
 	UsIM:                  "Thêm vào danh sách loại trừ",
 }
 
 var ImBackspaceList = []int{
 	SurroundingTextIM,
-	BackspaceForwardingIM,
-	ShiftLeftForwardingIM,
 }
 
 const (

@@ -170,8 +170,7 @@ func (e *IBusBambooEngine) shouldAppendDeadKey(newText, oldText string) bool {
 	var offset = e.getPreeditOffset(newRunes, oldRunes)
 
 	// workaround for chrome and firefox's address bar
-	if e.isFirstTimeSendingBS && offset < len(newRunes) && offset < len(oldRunes) && e.inBrowserList() &&
-		!e.checkInputMode(config.ShiftLeftForwardingIM) {
+	if e.isFirstTimeSendingBS && offset < len(newRunes) && offset < len(oldRunes) && e.inBrowserList() {
 		return true
 	}
 	return false
