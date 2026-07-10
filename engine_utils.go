@@ -221,6 +221,10 @@ func (e *IBusBambooEngine) processShortcutKey(keyVal, keyCode, state uint32) (bo
 	if e.isInputModeLTOpened {
 		return e.ltProcessKeyEvent(keyVal, keyCode, state)
 	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
+		if e.englishMode {
+			e.showAuxToast("English - Không thể thay đổi chế độ gõ!")
+			return true, true
+		}
 		e.resetBuffer()
 		newMode := config.PreeditIM
 		if e.config.DefaultInputMode == config.PreeditIM {
