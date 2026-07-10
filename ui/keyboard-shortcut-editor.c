@@ -314,16 +314,6 @@ static void set_margin ( GtkWidget *vbox, gint hmargin, gint vmargin )
   gtk_widget_set_margin_bottom(vbox, vmargin);
 }
 
-static void
-preedit_toggled_cb (GtkToggleButton *button, gpointer data)
-{
-  gboolean active = gtk_toggle_button_get_active (button);
-  if (active) {
-    saveInputMode(1); // Pre-edit
-  } else {
-    saveInputMode(2); // Surrounding Text
-  }
-}
 
 static gboolean
 tooltip_press_callback (GtkWidget      *event_box,
@@ -339,48 +329,6 @@ tooltip_press_callback (GtkWidget      *event_box,
     return TRUE;
 }
 
-static void add_page_other_settings_content(GtkWidget *parent, GtkWidget *w, guint flags, int mode)
-{
-  GtkWidget *grid;
-  GtkWidget *checkbox1;
-  GtkWidget *cancel_button;
-  GtkWidget *hbox;
-
-  grid = gtk_grid_new();
-  gtk_container_add(GTK_CONTAINER(parent), grid);
-
-  checkbox1 = gtk_check_button_new_with_label("Bật Pre-edit (có gạch chân)");
-  gboolean preedit_active = (mode == 1);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox1), preedit_active);
-  g_signal_connect (checkbox1, "toggled",
-                    G_CALLBACK (preedit_toggled_cb),
-                    NULL);
-  gtk_grid_attach(GTK_GRID(grid), checkbox1, 0, 0, 1, 1);
-
-  // Set consistent padding for all rows
-  gtk_grid_set_row_spacing(GTK_GRID(grid),  10);
-  gtk_grid_set_column_spacing(GTK_GRID(grid),  20);
-
-  // Pack the button group in the bottom right corner
-  GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-
-  /* Horizontal box to pack OK and Cancel buttons */
-  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  gtk_widget_set_halign(hbox, GTK_ALIGN_END);
-  gtk_widget_set_valign(vbox, GTK_ALIGN_END);
-  gtk_widget_set_vexpand(vbox, TRUE);
-
-  /* --- Create a Cancel button. --- */
-  cancel_button = gtk_button_new_with_label("Close");
-
-  g_signal_connect(cancel_button, "clicked", G_CALLBACK(close_window_cb), w);
-
-  /* --- Pack the cancel_button into the vertical box (vbox box1).  --- */
-  gtk_box_pack_end(GTK_BOX(hbox), cancel_button, FALSE, FALSE, 10);
-  gtk_box_pack_end(GTK_BOX(vbox), hbox, FALSE, FALSE, 10);
-
-  gtk_container_add(GTK_CONTAINER(parent), vbox);
-}
 
 /*
  * Main - program begins here
@@ -449,11 +397,6 @@ int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfg_
     add_macro_text(vbox, w, cfg_text, 0);
     gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, cfgPage);
 
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
-    set_margin(vbox, 5, pad);
-    GtkWidget* othersPage = gtk_label_new("Khác");
-    add_page_other_settings_content(vbox, w, flags, mode);
-    gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, othersPage);
 
   /*
    * --- Make the main window visible
