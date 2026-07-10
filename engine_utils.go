@@ -147,7 +147,6 @@ func (e *IBusBambooEngine) checkWmClass(newId string) {
 	if e.wmClasses != newId {
 		e.wmClasses = newId
 		e.resetBuffer()
-		e.resetFakeBackspace()
 	}
 }
 
