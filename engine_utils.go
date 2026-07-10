@@ -53,7 +53,7 @@ func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 		var inputMethod = bamboo.ParseInputMethod(cfg.InputMethodDefinitions, cfg.InputMethod)
 		baseEngine := ibus.BaseEngine(conn, objectPath)
 		var engine = NewIbusBambooEngine(engineName, config.LoadConfig(engineName), &baseEngine, bamboo.NewEngine(inputMethod, cfg.Flags))
-		engine.propList = GetPropListByConfig(cfg)
+		engine.propList = GetPropListByConfig(cfg, engine.englishMode)
 		engine.shouldEnqueuKeyStrokes = true
 		ibus.PublishEngine(conn, objectPath, engine)
 		if *gui {
@@ -206,41 +206,28 @@ func (e *IBusBambooEngine) processShortcutKey(keyVal, keyCode, state uint32) (bo
 		e.shouldRestoreKeyStrokes = true
 		return false, false
 	}
-	// fmt.Println("===Process shortcut for input method switcher")
-	if e.isShortcutKeyPressed(keyVal, state, KSViEnSwitch) {
-		e.englishMode = !e.englishMode
-		if e.englishMode {
-			e.showAuxToast("English")
-		} else {
-			e.showAuxToast("Vietnamese")
-		}
-		e.resetBuffer()
-		return true, true
-	}
 	// fmt.Println("====== Process shortcut for input mode switch")
 	if e.isInputModeLTOpened {
 		return e.ltProcessKeyEvent(keyVal, keyCode, state)
 	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
-		if e.englishMode {
-			e.showAuxToast("English - Không thể thay đổi chế độ gõ!")
-			return true, true
-		}
 		e.resetBuffer()
-		newMode := config.PreeditIM
-		if e.config.DefaultInputMode == config.PreeditIM {
-			newMode = config.SurroundingTextIM
-		}
-		e.config.DefaultInputMode = newMode
-		config.SaveConfig(e.config, e.engineName)
-		
-		// Show toast notification next to cursor
-		msg := "Pre-edit"
-		if newMode == config.SurroundingTextIM {
+		var msg string
+		if e.englishMode {
+			e.englishMode = false
+			e.config.DefaultInputMode = config.PreeditIM
+			msg = "Pre-edit"
+		} else if e.config.DefaultInputMode == config.PreeditIM {
+			e.englishMode = false
+			e.config.DefaultInputMode = config.SurroundingTextIM
 			msg = "Surrounding Text"
+		} else {
+			e.englishMode = true
+			msg = "English"
 		}
+		config.SaveConfig(e.config, e.engineName)
 		e.showAuxToast(msg)
 		
-		e.propList = GetPropListByConfig(e.config)
+		e.propList = GetPropListByConfig(e.config, e.englishMode)
 		e.RegisterProperties(e.propList)
 		return true, true
 	}
@@ -397,7 +384,7 @@ func (e *IBusBambooEngine) commitInputModeCandidate() {
 	}
 
 	config.SaveConfig(e.config, e.engineName)
-	e.propList = GetPropListByConfig(e.config)
+	e.propList = GetPropListByConfig(e.config, e.englishMode)
 	e.RegisterProperties(e.propList)
 }
 

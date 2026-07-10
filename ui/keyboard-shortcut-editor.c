@@ -2,14 +2,42 @@
 #include <gtk/gtk.h>
 #include "_cgo_export.h"
 
-#define TOTAL_ROWS 5
+#define TOTAL_ROWS 4
 #define TOTAL_MASKS_PER_ROW 4
+
+// Go Config.Shortcuts has 10 elements (5 shortcut pairs)
+#define TOTAL_SHORTCUT_KEYS 10
+
+// Indices in key_pairs_tmp for each shortcut pair start
+#define SHORTCUT_INPUT_MODE_SWITCH 0   // KSInputModeSwitch
+#define SHORTCUT_RESTORE_KEY_STROKES 2 // KSRestoreKeyStrokes
+#define SHORTCUT_VI_EN_SWITCH 4        // KSViEnSwitch (not used in UI anymore)
+#define SHORTCUT_EMOJI_DIALOG 6        // KSEmojiDialog
+#define SHORTCUT_HEXADECIMAL 8         // KSHexadecimal
+
+// Row indices in UI
+#define ROW_EMOJI 2
 
 int row = 0;
 int col = 0;
 const int KEYVAL = 1;
 const int MASK = 0;
 guint32 *key_pairs_tmp;
+
+/*
+ * get_shortcut_pair_idx
+ *
+ * Maps a GUI row index (0-3) to the corresponding key pair start index in
+ * the configuration array (key_pairs_tmp), skipping SHORTCUT_VI_EN_SWITCH.
+ */
+int get_shortcut_pair_idx(int row) {
+  if (row == 0) return SHORTCUT_INPUT_MODE_SWITCH;
+  if (row == 1) return SHORTCUT_RESTORE_KEY_STROKES;
+  if (row == 2) return SHORTCUT_EMOJI_DIALOG;
+  if (row == 3) return SHORTCUT_HEXADECIMAL;
+  return 0;
+}
+
 char *fix_fb_alert = "Bật tùy chọn này nếu bạn gặp tình trạng lặp chữ khi chat trong Facebook, Messenger.\n\
 Lưu ý: Tính năng này có thể khiến thanh địa chỉ trên trình duyệt Google Chrome hoạt động không chính xác.";
 char *labels[TOTAL_MASKS_PER_ROW] = {"Ctrl", "Alt", "Shift", "Super"};
@@ -18,7 +46,7 @@ int masks[TOTAL_MASKS_PER_ROW] = {GDK_CONTROL_MASK, GDK_MOD1_MASK, GDK_SHIFT_MAS
 int keyvals[TOTAL_MASKS_PER_ROW] = {GDK_KEY_Control_L, GDK_KEY_Alt_L, GDK_KEY_Shift_L,
                            GDK_KEY_Super_L};
 char *text_arr[TOTAL_ROWS] = {"Chuyển chế độ gõ", "Khôi phục phím",
-                                "Tạm tắt bộ gõ", "Emoji", "Hexadecimal"};
+                                "Emoji", "Hexadecimal"};
 GtkWidget *maskWidgets[TOTAL_MASKS_PER_ROW * TOTAL_ROWS];
 GtkWidget *keyWidgets[TOTAL_ROWS];
 int usIM = 0;
@@ -39,7 +67,8 @@ gint close_window_cb(GtkWidget *widget, gpointer *dialog) {
 }
 
 gint btn_reset_cb(GtkWidget *widget, gpointer *data) {
-  for (int i = 0 ; i < TOTAL_ROWS * 2; i++ ){
+  // Reset all 10 entries in the underlying array
+  for (int i = 0 ; i < TOTAL_SHORTCUT_KEYS; i++ ){
     key_pairs_tmp[i] = 0;
   }
   for (int i=0 ; i < TOTAL_ROWS * TOTAL_MASKS_PER_ROW ; i++) {
@@ -86,10 +115,11 @@ void btn_macro_save_cb(GtkWidget *widget, gpointer data) {
 void check_event_cb(GtkWidget *widget, gpointer data) {
   int pos = GPOINTER_TO_INT(data);
   int row = pos / TOTAL_MASKS_PER_ROW, mask_col = pos % TOTAL_MASKS_PER_ROW;
+  int idx = get_shortcut_pair_idx(row);
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    key_pairs_tmp[row * 2] |= masks[mask_col];
+    key_pairs_tmp[idx] |= masks[mask_col];
   } else {
-    key_pairs_tmp[row * 2] &= ~masks[mask_col];
+    key_pairs_tmp[idx] &= ~masks[mask_col];
   }
 }
 
@@ -109,7 +139,8 @@ char * int_to_accel(int keyval) {
 static gboolean key_release_cb(GtkWidget *entry, GdkEventKey *event,
                            gpointer data) {
   int row = GPOINTER_TO_INT(data);
-  int keyval = key_pairs_tmp[row * 2 + 1];
+  int idx = get_shortcut_pair_idx(row);
+  int keyval = key_pairs_tmp[idx + 1];
 
   /* --- Put text in the field. --- */
   gtk_entry_set_text(GTK_ENTRY(entry), int_to_accel(keyval));
@@ -118,11 +149,12 @@ static gboolean key_release_cb(GtkWidget *entry, GdkEventKey *event,
 
 static gboolean key_press_cb(GtkWidget *entry, GdkEventKey *event, gpointer data) {
   int row = GPOINTER_TO_INT(data);
+  int idx = get_shortcut_pair_idx(row);
   if (event->keyval == GDK_KEY_BackSpace || event->keyval == GDK_KEY_Delete) {
-    key_pairs_tmp[row * 2 + 1] = 0;
+    key_pairs_tmp[idx + 1] = 0;
     return FALSE;
   }
-  key_pairs_tmp[row * 2 + 1] = gdk_keyval_to_lower(event->keyval);
+  key_pairs_tmp[idx + 1] = gdk_keyval_to_lower(event->keyval);
   return TRUE;
 }
 
@@ -137,7 +169,8 @@ void add_checkbox(GtkWidget *parent, char *text, int mask_pos) {
    * --- Active/Inactive check button
    */
   int row = mask_pos / TOTAL_MASKS_PER_ROW, mask_col = mask_pos % TOTAL_MASKS_PER_ROW;
-  int mask = key_pairs_tmp[row * 2];
+  int idx = get_shortcut_pair_idx(row);
+  int mask = key_pairs_tmp[idx];
   gboolean active = FALSE;
   if (mask&masks[mask_col]) {
     active = TRUE;
@@ -223,7 +256,8 @@ void add_shortcut_box(GtkWidget *widget, char *text, int row) {
   gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 10);
 
   /* --- Put some text in the field. --- */
-  int kvl = gdk_keyval_to_lower(key_pairs_tmp[row*2+1]);
+  int idx = get_shortcut_pair_idx(row);
+  int kvl = gdk_keyval_to_lower(key_pairs_tmp[idx+1]);
   gtk_entry_set_text(GTK_ENTRY(entry), int_to_accel(kvl));
   gtk_entry_set_alignment(GTK_ENTRY(entry), 0.5);
 
@@ -378,7 +412,8 @@ int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfg_
    */
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
 
-  int i = usIM ? 3 : 0;
+  // If in US Input Mode, we only show rows from ROW_EMOJI onwards (Emoji and Hexadecimal)
+  int i = usIM ? ROW_EMOJI : 0;
   for (; i < TOTAL_ROWS; i++) {
     add_shortcut_box(vbox, text_arr[i], i);
   }

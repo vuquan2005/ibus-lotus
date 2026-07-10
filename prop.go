@@ -61,9 +61,9 @@ var IBusSeparator = &ibus.Property{
 	SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
 }
 
-func GetPropListByConfig(c *config.Config) *ibus.PropList {
+func GetPropListByConfig(c *config.Config, englishMode bool) *ibus.PropList {
 	var preeditChecked = ibus.PROP_STATE_UNCHECKED
-	if c.DefaultInputMode == config.PreeditIM {
+	if !englishMode && c.DefaultInputMode == config.PreeditIM {
 		preeditChecked = ibus.PROP_STATE_CHECKED
 	}
 	var aboutText = "IBus " + EngineName + " " + Version
