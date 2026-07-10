@@ -369,6 +369,13 @@ func (e *IBusBambooEngine) PropertyActivate(propName string, propState uint32) *
 			e.macroTable.Reload(e.engineName, e.config.IBflags&config.IBautoCapitalizeMacro != 0)
 		}
 	}
+	if propName == PropKeyEnablePreedit {
+		if propState == ibus.PROP_STATE_CHECKED {
+			e.config.DefaultInputMode = config.PreeditIM
+		} else {
+			e.config.DefaultInputMode = config.SurroundingTextIM
+		}
+	}
 
 	var im, foundIm = getValueFromPropKey(propName, "InputMode")
 	if foundIm && propState == ibus.PROP_STATE_CHECKED {

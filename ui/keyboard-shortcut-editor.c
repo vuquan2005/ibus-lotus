@@ -281,52 +281,14 @@ static void set_margin ( GtkWidget *vbox, gint hmargin, gint vmargin )
 }
 
 static void
-combo_changed_cb (GtkComboBox *combo, gpointer  data)
+preedit_toggled_cb (GtkToggleButton *button, gpointer data)
 {
-  GtkTreeIter iter;
-
-  if (gtk_combo_box_get_active_iter (combo, &iter))
-    {
-      GtkTreeModel *model;
-      gint effect;
-
-      model = gtk_combo_box_get_model (combo);
-      gtk_tree_model_get (model, &iter, 1, &effect, -1);
-
-      saveInputMode(effect+1);
-    }
-}
-
-GtkWidget* create_new_dropdown(int mode, char **options, int n) {
-  GtkListStore *store;
-  GtkTreeIter iter;
-  GtkWidget *combobox;
-  GtkTreeModel *model;
-  GtkCellRenderer *renderer;
-
-  combobox = gtk_combo_box_new ();
-
-  store=gtk_list_store_new(2,G_TYPE_STRING, G_TYPE_INT);
-
-  for (int i=0; i < n; i++) {
-    gtk_list_store_append(GTK_LIST_STORE(store),&iter);
-    gtk_list_store_set(store,&iter,0,options[i],1, i, -1);
+  gboolean active = gtk_toggle_button_get_active (button);
+  if (active) {
+    saveInputMode(1); // Pre-edit
+  } else {
+    saveInputMode(2); // Surrounding Text
   }
-
-  gtk_combo_box_set_model(GTK_COMBO_BOX(combobox), GTK_TREE_MODEL(store));
-
-  /* by default, this is blank, so set the first */
-  gtk_combo_box_set_active ( GTK_COMBO_BOX (combobox),
-			       mode-1 );
-  g_signal_connect (combobox, "changed",
-                    G_CALLBACK (combo_changed_cb),
-                    NULL);
-  renderer = gtk_cell_renderer_text_new ();
-  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (combobox), renderer, TRUE);
-  gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (combobox), renderer,
-				    "text", 0,
-				    NULL);
-  return combobox;
 }
 
 static gboolean
@@ -343,29 +305,23 @@ tooltip_press_callback (GtkWidget      *event_box,
     return TRUE;
 }
 
-char *options[] = {
-  "1. Pre-edit (có gạch chân)",
-  "2. Surrounding Text (không gạch chân)",
-};
-
 static void add_page_other_settings_content(GtkWidget *parent, GtkWidget *w, guint flags, int mode)
 {
   GtkWidget *grid;
-  GtkWidget *label1;
-  GtkWidget *label2;
-  GtkWidget *dropdown1;
-  GtkWidget *checkbox2, *checkbox3;
+  GtkWidget *checkbox1;
   GtkWidget *cancel_button;
   GtkWidget *hbox;
 
   grid = gtk_grid_new();
   gtk_container_add(GTK_CONTAINER(parent), grid);
 
-  label1 = gtk_label_new("Chế độ gõ mặc định");
-  gtk_grid_attach(GTK_GRID(grid), label1, 0, 0, 1, 1); // column, row, width, height
-
-  dropdown1 = create_new_dropdown(mode, options, 2);
-  gtk_grid_attach(GTK_GRID(grid), dropdown1, 1, 0, 1, 1);
+  checkbox1 = gtk_check_button_new_with_label("Bật Pre-edit (có gạch chân)");
+  gboolean preedit_active = (mode == 1);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox1), preedit_active);
+  g_signal_connect (checkbox1, "toggled",
+                    G_CALLBACK (preedit_toggled_cb),
+                    NULL);
+  gtk_grid_attach(GTK_GRID(grid), checkbox1, 0, 0, 1, 1);
 
   // Set consistent padding for all rows
   gtk_grid_set_row_spacing(GTK_GRID(grid),  10);
