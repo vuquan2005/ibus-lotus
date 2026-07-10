@@ -52,7 +52,6 @@ type IBusBambooEngine struct {
 	inputModeLookupTable   *ibus.LookupTable
 	capabilities           uint32
 	keyPressDelay          int
-	nFakeBackSpace         int32
 	isFirstTimeSendingBS   bool
 	emoji                  *EmojiEngine
 	isSurroundingTextReady bool

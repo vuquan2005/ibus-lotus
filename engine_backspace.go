@@ -34,7 +34,6 @@ import (
 func (e *IBusBambooEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, *dbus.Error) {
 	if isMovementKey(keyVal) {
 		e.preeditor.Reset()
-		e.resetFakeBackspace()
 		e.isSurroundingTextReady = true
 		return false, nil
 	}
@@ -55,34 +54,27 @@ func (e *IBusBambooEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, stat
 
 	if e.shouldEnqueuKeyStrokes {
 		// WARNING: don't use ForwardKeyEvent api in SurroundingText mode
-		if e.checkInputMode(config.SurroundingTextIM) {
-			if keyVal == IBusBackSpace {
-				if fakeBackspaceCount > 0 {
-					fakeBackspaceCount -= 1
-					return false, nil
-				} else {
-					sleep()
-					if e.getRawKeyLen() > 0 {
-						if e.shouldFallbackToEnglish(true) {
-							e.preeditor.RestoreLastWord(false)
-						}
-						e.preeditor.RemoveLastChar(false)
-					}
+		if keyVal == IBusBackSpace {
+			sleep()
+			if e.getRawKeyLen() > 0 {
+				if e.shouldFallbackToEnglish(true) {
+					e.preeditor.RestoreLastWord(false)
 				}
+				e.preeditor.RemoveLastChar(false)
+			}
+			return false, nil
+		}
+		if keyVal == IBusTab {
+			sleep()
+			if ok, _ := e.getMacroText(); !ok {
+				e.preeditor.Reset()
 				return false, nil
 			}
-			if keyVal == IBusTab {
-				sleep()
-				if ok, _ := e.getMacroText(); !ok {
-					e.preeditor.Reset()
-					return false, nil
-				}
-			}
-			isValidKey := isValidState(state) && e.isValidKeyVal(keyVal)
-			if !isValidKey {
-				sleep()
-				return e.keyPressHandler(keyVal, keyCode, state), nil
-			}
+		}
+		isValidKey := isValidState(state) && e.isValidKeyVal(keyVal)
+		if !isValidKey {
+			sleep()
+			return e.keyPressHandler(keyVal, keyCode, state), nil
 		}
 		// if the main thread is busy processing, the keypress events come all mixed up
 		// so we enqueue these keypress events and process them sequentially on another thread
@@ -143,7 +135,7 @@ func (e *IBusBambooEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
 			e.bsCommitText([]rune(" "))
 			time.Sleep(10 * time.Millisecond)
 			e.isFirstTimeSendingBS = false
-			e.SendBackSpace(1)
+			e.DeleteCommittedChars(1)
 		}
 		e.updatePreviousTextInBatch(oldText, newText, isWordBreakRune)
 		return isValidKey
@@ -179,7 +171,7 @@ func (e *IBusBambooEngine) shouldAppendDeadKey(newText, oldText string) bool {
 func (e *IBusBambooEngine) updatePreviousText(oldText, newText string) {
 	offsetRunes, nBackSpace := e.getOffsetRunes(newText, oldText)
 	if nBackSpace > 0 {
-		e.SendBackSpace(nBackSpace)
+		e.DeleteCommittedChars(nBackSpace)
 	}
 	log.Printf("Updating Previous Text %s ---> %s\n", oldText, newText)
 	e.bsCommitText(offsetRunes)
@@ -188,7 +180,7 @@ func (e *IBusBambooEngine) updatePreviousText(oldText, newText string) {
 func (e *IBusBambooEngine) updatePreviousTextInBatch(oldText, newText string, isWordBreakRune bool) {
 	offsetRunes, nBackSpace := e.getOffsetRunes(newText, oldText)
 	if nBackSpace > 0 {
-		e.SendBackSpace(nBackSpace)
+		e.DeleteCommittedChars(nBackSpace)
 	}
 	var buffer = []string{string(offsetRunes)}
 	if isWordBreakRune {
@@ -238,7 +230,7 @@ func (e *IBusBambooEngine) batchCommit(oldText string, newText string, nBackSpac
 		return
 	}
 	if patchedBackSpace > nBackSpace {
-		e.SendBackSpace(patchedBackSpace - nBackSpace)
+		e.DeleteCommittedChars(patchedBackSpace - nBackSpace)
 	} else if patchedBackSpace < nBackSpace {
 		var offset = utf8.RuneCountInString(oldText) - nBackSpace
 		patchedRunes = fullRunes[offset:]
@@ -266,4 +258,15 @@ func (e *IBusBambooEngine) bsCommitText(rs []rune) {
 		return
 	}
 	e.commitText(string(rs))
+}
+
+// Loại bỏ e.SendBackSpace(n) vì chỉ còn một phương thức duy nhất để xóa ký tự đã commit là DeleteSurroundingText
+func (e *IBusBambooEngine) DeleteCommittedChars(n int) {
+	if n <= 0 {
+		return
+	}
+	time.Sleep(20 * time.Millisecond)
+	log.Printf("Deleting %d committed characters via SurroundingText\n", n)
+	e.DeleteSurroundingText(-int32(n), uint32(n))
+	time.Sleep(20 * time.Millisecond)
 }
