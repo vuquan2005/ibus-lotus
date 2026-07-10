@@ -41,11 +41,11 @@ sudo/doas pkg install go pkgconf libX11 libXtst gtk3 bash
 ```
 3. Download
 ```bash
-wget https://github.com/LotusInputEngine/ibus-lotus/archive/master.zip -O ibus-lotus.zip
+wget https://github.com/vuquan2005/ibus-lotus/archive/master.zip -O ibus-lotus.zip
 unzip ibus-lotus.zip
 
 # hoặc clone từ github:
-git clone https://github.com/LotusInputEngine/ibus-lotus.git
+git clone https://github.com/vuquan2005/ibus-lotus.git
 ```
 4. Build & install
 

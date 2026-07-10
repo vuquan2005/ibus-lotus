@@ -21,7 +21,7 @@ package main
 
 import (
 	"bufio"
-	"ibus-bamboo/config"
+	"ibus-lotus/config"
 	"os"
 	"strings"
 	"sync"

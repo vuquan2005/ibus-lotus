@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=IBus-Lotus Setup
+Type=Application
+Exec=/usr/lib/ibus-lotus/ibus-engine-lotus -gui
+Icon=/usr/share/ibus-lotus/icons/vi.svg
+NoDisplay=true
+StartupNotify=true

@@ -20,8 +20,8 @@ CC?=cc
 SHELL?=sh
 PREFIX?=/usr
 
-engine_name=bamboo
-engine_gui_name=ibus-setup-Bamboo.desktop
+engine_name=lotus
+engine_gui_name=ibus-setup-Lotus.desktop
 ibus_e_name=ibus-engine-$(engine_name)
 pkg_name=ibus-$(engine_name)
 version=1.0.2
@@ -40,7 +40,7 @@ all: build archive
 
 archive:
 	cp scripts/prebuilt-install ./install
-	tar -zcf "ibus-lotus-${version}.tar.gz" data icons ibus-engine-bamboo ./install
+	tar -zcf "ibus-lotus-${version}.tar.gz" data icons ibus-engine-lotus ./install
 	rm ./install
 	
 build:
@@ -50,12 +50,12 @@ test:
 	$(SHELL) scripts/test
 
 clean:
-	rm -f ibus-engine-bamboo
+	rm -f ibus-engine-lotus
 	rm -f *_linux *_cover.html go_test_* go_build_* test *.gz test
 	rm -f debian/files
 	rm -rf debian/debhelper*
 	rm -rf debian/.debhelper
-	rm -rf debian/ibus-bamboo*
+	rm -rf debian/ibus-lotus*
 
 
 install: build

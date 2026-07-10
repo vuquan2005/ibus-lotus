@@ -20,7 +20,7 @@
 package main
 
 import (
-	"ibus-bamboo/config"
+	"ibus-lotus/config"
 
 	"github.com/BambooEngine/bamboo-core"
 	ibus "github.com/LotusInputEngine/goibus"

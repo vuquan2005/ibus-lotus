@@ -9,7 +9,7 @@ extern int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, cha
 import "C"
 import (
 	"encoding/json"
-	"ibus-bamboo/config"
+	"ibus-lotus/config"
 	"io/ioutil"
 	"os"
 	"unsafe"

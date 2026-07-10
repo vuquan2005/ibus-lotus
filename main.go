@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	ComponentName = "org.freedesktop.IBus.bamboo"
+	ComponentName = "org.freedesktop.IBus.lotus"
 	EngineName    = "Lotus"
 )
 

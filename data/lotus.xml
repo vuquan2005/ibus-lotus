@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2018 Luong Thanh Lam <ltlam93@gmail.com>
+  ~ Copyright (C) 2026 VuQuan <66623851+vuquan2005@users.noreply.github.com>
+  ~ Licensed under GPLv3
+  -->
+<component>
+    <name>org.freedesktop.IBus.lotus</name>
+    <description>Lotus - Vietnamese Input Method Editor for Linux</description>
+    <exec>/usr/lib/ibus-lotus/ibus-engine-lotus --ibus</exec>
+    <version>1.0.2</version>
+    <author>VuQuan &lt;66623851+vuquan2005@users.noreply.github.com&gt;</author>
+    <license>GPLv3</license>
+    <homepage>https://github.com/vuquan2005/ibus-lotus</homepage>
+    <textdomain>ibus-lotus</textdomain>
+    <engines>
+        <engine>
+            <symbol>vi</symbol>
+            <name>Lotus</name>
+            <language>vi</language>
+            <layout>default</layout>
+            <longname>Lotus</longname>
+            <icon>/usr/share/ibus-lotus/icons/vi.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+        <engine>
+            <symbol>vi</symbol>
+            <name>Lotus::Us</name>
+            <language>vi</language>
+            <layout>us</layout>
+            <longname>Lotus (US layout)</longname>
+            <icon>/usr/share/ibus-lotus/icons/vi.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+        <engine>
+            <symbol>vi</symbol>
+            <name>Lotus::Candy</name>
+            <language>vi</language>
+            <layout>default</layout>
+            <longname>Lotus Candy</longname>
+            <icon>/usr/share/ibus-lotus/icons/vi-candy.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+        <engine>
+            <symbol>vi</symbol>
+            <name>Lotus::Flag</name>
+            <language>vi</language>
+            <layout>default</layout>
+            <longname>Lotus Flag</longname>
+            <icon>/usr/share/ibus-lotus/icons/vi-flag.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+        <engine>
+            <symbol>en</symbol>
+            <name>LotusUs</name>
+            <language>en</language>
+            <layout>us</layout>
+            <longname>Lotus English (US)</longname>
+            <icon>/usr/share/ibus-lotus/icons/us.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+        <engine>
+            <symbol>en</symbol>
+            <name>LotusUs::Candy</name>
+            <language>en</language>
+            <layout>us</layout>
+            <longname>Lotus English (US) Candy</longname>
+            <icon>/usr/share/ibus-lotus/icons/us-candy.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+        <engine>
+            <symbol>en</symbol>
+            <name>LotusUs::Flag</name>
+            <language>en</language>
+            <layout>us</layout>
+            <longname>Lotus English (US) Flag</longname>
+            <icon>/usr/share/ibus-lotus/icons/us-flag.svg</icon>
+            <setup>/usr/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
+        </engine>
+    </engines>
+</component>
