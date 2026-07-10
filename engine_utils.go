@@ -27,6 +27,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -217,9 +218,22 @@ func (e *IBusBambooEngine) processShortcutKey(keyVal, keyCode, state uint32) (bo
 		return e.ltProcessKeyEvent(keyVal, keyCode, state)
 	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
 		e.resetBuffer()
-		e.isInputModeLTOpened = true
-		e.lastKeyWithShift = true
-		e.openLookupTable()
+		newMode := config.PreeditIM
+		if e.config.DefaultInputMode == config.PreeditIM {
+			newMode = config.SurroundingTextIM
+		}
+		e.config.DefaultInputMode = newMode
+		config.SaveConfig(e.config, e.engineName)
+		
+		// Show toast notification next to cursor
+		msg := "Pre-edit"
+		if newMode == config.SurroundingTextIM {
+			msg = "Surrounding Text"
+		}
+		e.showAuxToast(msg)
+		
+		e.propList = GetPropListByConfig(e.config)
+		e.RegisterProperties(e.propList)
 		return true, true
 	}
 
@@ -585,4 +599,28 @@ func notify(enMode bool) {
 	if call.Err != nil {
 		fmt.Println(call.Err)
 	}
+}
+
+var (
+	auxTimer *time.Timer
+	auxMutex sync.Mutex
+)
+
+const auxToastDuration = 500 * time.Millisecond
+
+func (e *IBusBambooEngine) showAuxToast(msg string) {
+	auxMutex.Lock()
+	defer auxMutex.Unlock()
+
+	if auxTimer != nil {
+		auxTimer.Stop()
+	}
+
+	e.UpdateAuxiliaryText(ibus.NewText(msg), true)
+
+	auxTimer = time.AfterFunc(auxToastDuration, func() {
+		auxMutex.Lock()
+		defer auxMutex.Unlock()
+		e.HideAuxiliaryText()
+	})
 }
