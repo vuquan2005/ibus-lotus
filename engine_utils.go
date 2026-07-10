@@ -289,7 +289,7 @@ func (e *IBusBambooEngine) openLookupTable() {
 		wmClass = wmClasses[1]
 	}
 
-	e.UpdateAuxiliaryText(ibus.NewText("Nhấn (1/2/3/4/5) để lưu tùy chọn của bạn"), true)
+	e.UpdateAuxiliaryText(ibus.NewText("Nhấn (1/2/3) để lưu tùy chọn của bạn"), true)
 
 	lt := ibus.NewLookupTable()
 	lt.PageSize = uint32(len(config.ImLookupTable))
