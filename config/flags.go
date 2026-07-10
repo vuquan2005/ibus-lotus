@@ -5,8 +5,6 @@ const (
 	SurroundingTextIM
 	BackspaceForwardingIM
 	ShiftLeftForwardingIM
-	ForwardAsCommitIM
-	XTestFakeKeyEventIM
 	UsIM
 )
 
@@ -15,8 +13,6 @@ var ImLookupTable = map[int]string{
 	SurroundingTextIM:     "Sửa lỗi gạch chân (Surrounding Text)",
 	BackspaceForwardingIM: "Sửa lỗi gạch chân (ForwardKeyEvent I)",
 	ShiftLeftForwardingIM: "Sửa lỗi gạch chân (ForwardKeyEvent II)",
-	ForwardAsCommitIM:     "Sửa lỗi gạch chân (Forward as commit)",
-	XTestFakeKeyEventIM:   "Sửa lỗi gạch chân (XTestFakeKeyEvent)",
 	UsIM:                  "Thêm vào danh sách loại trừ",
 }
 
@@ -24,8 +20,6 @@ var ImBackspaceList = []int{
 	SurroundingTextIM,
 	BackspaceForwardingIM,
 	ShiftLeftForwardingIM,
-	ForwardAsCommitIM,
-	XTestFakeKeyEventIM,
 }
 
 const (

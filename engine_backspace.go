@@ -54,8 +54,8 @@ func (e *IBusBambooEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, stat
 	}
 
 	if e.shouldEnqueuKeyStrokes {
-		// WARNING: don't use ForwardKeyEvent api in XTestFakeKeyEvent/SurroundingText mode
-		if e.checkInputMode(config.XTestFakeKeyEventIM) || e.checkInputMode(config.SurroundingTextIM) {
+		// WARNING: don't use ForwardKeyEvent api in SurroundingText mode
+		if e.checkInputMode(config.SurroundingTextIM) {
 			if keyVal == IBusBackSpace {
 				if fakeBackspaceCount > 0 {
 					fakeBackspaceCount -= 1
@@ -264,19 +264,6 @@ func (e *IBusBambooEngine) getOffsetRunes(newText, oldText string) ([]rune, int)
 
 func (e *IBusBambooEngine) bsCommitText(rs []rune) {
 	if len(rs) == 0 {
-		return
-	}
-	if e.checkInputMode(config.ForwardAsCommitIM) {
-		log.Println("Forward as commit", string(rs))
-		for _, chr := range rs {
-			var keyVal = vnSymMapping[chr]
-			if keyVal == 0 {
-				keyVal = uint32(chr)
-			}
-			e.ForwardKeyEvent(keyVal, 0, 0)
-			e.ForwardKeyEvent(keyVal, 0, IBusReleaseMask)
-		}
-		time.Sleep(time.Duration(len(rs)) * 5 * time.Millisecond)
 		return
 	}
 	e.commitText(string(rs))
