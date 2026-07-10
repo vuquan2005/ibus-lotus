@@ -1,5 +1,5 @@
-# Ibus bamboo
-ibus_e_name="ibus-engine-bamboo"
+# Ibus lotus
+ibus_e_name="ibus-engine-lotus"
 version="1.0.2"
 
 # Go flags

@@ -39,7 +39,7 @@
 
             preConfigure = ''
               export GOCACHE="$TMPDIR/go-cache"
-              sed -i "s,/usr,$out," data/bamboo.xml
+              sed -i "s,/usr,$out," data/lotus.xml
             '';
 
             makeFlags = [

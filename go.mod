@@ -1,4 +1,4 @@
-module ibus-bamboo
+module ibus-lotus
 
 go 1.23.0
 

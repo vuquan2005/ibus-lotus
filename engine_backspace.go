@@ -21,7 +21,7 @@ package main
 
 import (
 	"fmt"
-	"ibus-bamboo/config"
+	"ibus-lotus/config"
 	"log"
 	"strings"
 	"time"
@@ -31,7 +31,7 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-func (e *IBusBambooEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, *dbus.Error) {
+func (e *IBusLotusEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, *dbus.Error) {
 	if isMovementKey(keyVal) {
 		e.preeditor.Reset()
 		e.isSurroundingTextReady = true
@@ -85,14 +85,14 @@ func (e *IBusBambooEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, stat
 	}
 }
 
-func (e *IBusBambooEngine) keyPressForwardHandler(keyVal, keyCode, state uint32) {
+func (e *IBusLotusEngine) keyPressForwardHandler(keyVal, keyCode, state uint32) {
 	ret := e.keyPressHandler(keyVal, keyCode, state)
 	if !ret {
 		e.ForwardKeyEvent(keyVal, keyCode, state)
 	}
 }
 
-func (e *IBusBambooEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
+func (e *IBusLotusEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
 	// log.Printf(">>Backspace:ProcessKeyEvent >  %c | keyCode 0x%04x keyVal 0x%04x | %d\n", rune(keyVal), keyCode, keyVal, len(keyPressChan))
 	defer e.updateLastKeyWithShift(keyVal, state)
 	if e.keyPressDelay > 0 {
@@ -143,7 +143,7 @@ func (e *IBusBambooEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
 	return isValidKey
 }
 
-func (e *IBusBambooEngine) getPreeditOffset(newRunes, oldRunes []rune) int {
+func (e *IBusLotusEngine) getPreeditOffset(newRunes, oldRunes []rune) int {
 	var minLen = len(oldRunes)
 	if len(newRunes) < minLen {
 		minLen = len(newRunes)
@@ -156,7 +156,7 @@ func (e *IBusBambooEngine) getPreeditOffset(newRunes, oldRunes []rune) int {
 	return minLen
 }
 
-func (e *IBusBambooEngine) shouldAppendDeadKey(newText, oldText string) bool {
+func (e *IBusLotusEngine) shouldAppendDeadKey(newText, oldText string) bool {
 	var oldRunes = []rune(oldText)
 	var newRunes = []rune(newText)
 	var offset = e.getPreeditOffset(newRunes, oldRunes)
@@ -168,7 +168,7 @@ func (e *IBusBambooEngine) shouldAppendDeadKey(newText, oldText string) bool {
 	return false
 }
 
-func (e *IBusBambooEngine) updatePreviousText(oldText, newText string) {
+func (e *IBusLotusEngine) updatePreviousText(oldText, newText string) {
 	offsetRunes, nBackSpace := e.getOffsetRunes(newText, oldText)
 	if nBackSpace > 0 {
 		e.DeleteCommittedChars(nBackSpace)
@@ -177,7 +177,7 @@ func (e *IBusBambooEngine) updatePreviousText(oldText, newText string) {
 	e.bsCommitText(offsetRunes)
 }
 
-func (e *IBusBambooEngine) updatePreviousTextInBatch(oldText, newText string, isWordBreakRune bool) {
+func (e *IBusLotusEngine) updatePreviousTextInBatch(oldText, newText string, isWordBreakRune bool) {
 	offsetRunes, nBackSpace := e.getOffsetRunes(newText, oldText)
 	if nBackSpace > 0 {
 		e.DeleteCommittedChars(nBackSpace)
@@ -219,7 +219,7 @@ func (e *IBusBambooEngine) updatePreviousTextInBatch(oldText, newText string, is
 // batchCommit compares two given text and commit the right outer text, with backspaces if necessary
 // toi - tôi = ôi + 2 BS
 // <space> - tôi = tôi
-func (e *IBusBambooEngine) batchCommit(oldText string, newText string, nBackSpace int, isWordBreakRune bool) {
+func (e *IBusLotusEngine) batchCommit(oldText string, newText string, nBackSpace int, isWordBreakRune bool) {
 	fullRunes := []rune(newText)
 	if len(fullRunes) == 0 {
 		return
@@ -241,7 +241,7 @@ func (e *IBusBambooEngine) batchCommit(oldText string, newText string, nBackSpac
 }
 
 // getOffsetRunes returns the right outer text and number of pending backspaces
-func (e *IBusBambooEngine) getOffsetRunes(newText, oldText string) ([]rune, int) {
+func (e *IBusLotusEngine) getOffsetRunes(newText, oldText string) ([]rune, int) {
 	var oldRunes = []rune(oldText)
 	var newRunes = []rune(newText)
 	var nBackSpace = 0
@@ -253,7 +253,7 @@ func (e *IBusBambooEngine) getOffsetRunes(newText, oldText string) ([]rune, int)
 	return newRunes[offset:], nBackSpace
 }
 
-func (e *IBusBambooEngine) bsCommitText(rs []rune) {
+func (e *IBusLotusEngine) bsCommitText(rs []rune) {
 	if len(rs) == 0 {
 		return
 	}
@@ -261,7 +261,7 @@ func (e *IBusBambooEngine) bsCommitText(rs []rune) {
 }
 
 // Loại bỏ e.SendBackSpace(n) vì chỉ còn một phương thức duy nhất để xóa ký tự đã commit là DeleteSurroundingText
-func (e *IBusBambooEngine) DeleteCommittedChars(n int) {
+func (e *IBusLotusEngine) DeleteCommittedChars(n int) {
 	if n <= 0 {
 		return
 	}
