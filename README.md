@@ -1,96 +1,147 @@
 # IBus Lotus - Bộ gõ tiếng Việt cho Linux
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://opensource.org/licenses/GPL-3.0)
+IBus Lotus là dự án được kế thừa và phát triển tiếp từ [IBus Bamboo](https://github.com/BambooEngine/ibus-bamboo) (của [BambooEngine](https://github.com/BambooEngine)) thông qua bản fork [IBus Lotus](https://github.com/hien-ngo29/ibus-lotus) (của [hien-ngo29](https://github.com/hien-ngo29)) đã bị đình trệ và ngừng phát triển https://github.com/BambooEngine/ibus-bamboo/issues/590#issuecomment-3762683651. Dự án này nhằm mục đích tiếp tục duy trì để duy trì bộ gõ hoạt động trên các hệ thống Linux hiện đại.
 
-IBus Lotus là bản fork của [ibus-bamboo](https://github.com/BambooEngine/ibus-bamboo/), được khởi đầu bởi [hien-ngo29](https://github.com/hien-ngo29). Dự án hiện được duy trì và tiếp tục phát triển bởi [vuquan2005](https://github.com/vuquan2005/ibus-lotus).
+Dự án không hướng đến việc xây dựng một bộ gõ mới hay thay đổi cách hoạt động của IBus. Mục tiêu đơn giản là tiếp tục duy trì để bản thân mình và những người vẫn sử dụng IBus có thể tiếp tục sử dụng trên GNOME, wayland một cách tốt hơn.
 
-Hiện các bộ gõ mới xuất hiện rất nhiều mình thử vài cái và đều còn rất nhiều lỗi. Vấn đề hiện tại của các bộ gõ hiện tại là upstream wayland với text-input-v3 đã không còn hỗ trợ được kiểu gõ gửi phím back space kiểu Unikey được nữa, buộc phải dùng pre-edit (chữ không hiện ngay mà ở bộ nhớ đệm gõ xong mới đưa vào ứng dụng -> không hiện gợi ý khi search/code/...) hoặc dùng surround text (nhiều ứng dụng không hỗ trợ ví dụ terminal-shell hoặc hỗ trợ không tốt/lỗi và hơn thế là mỗi một web fb/mess/... lại xử lý khác nhau).
-Repo này sẽ không giải quyết được việc đó =)) vì nó đến từ các ông lớn upstream và các ứng dụng không hỗ trợ tốt nên kệ nó đi. Mình không đủ trình độ và thời gian để tìm hiểu đóng góp cho nó, và mình cũng sẽ không cố gắng hacky hay tìm cách đi vòng, đi ngược upstream vì vốn dĩ upstream là xu thế của công nghệ, đi ngược với nó rất tốn công sức bảo trì và không ổn định.
+IBus Lotus được phát triển theo hướng kế thừa những gì IBus Bamboo đã làm tốt, đồng thời loại bỏ hoặc điều chỉnh những phần không còn phù hợp với Wayland và môi trường Linux hiện nay. Phạm vi của dự án chủ yếu là sửa lỗi, cải thiện khả năng tương thích và bảo trì mã nguồn, thay vì bổ sung nhiều cơ chế nhập liệu hoặc theo đuổi các hướng triển khai mới.
 
-Repo này mình chỉ tập trung vào 2 chế độ pre-edit và surround text cũng như việc chuyển đổi vi/en.
+---
 
-Tại sao chọn IBus? Vì Gnome mặc định vẫn dùng ibus và mình không tìm thấy repo nào hỗ trợ ibus cả và mình lười cài thêm
+## Vì sao dự án này tồn tại?
 
-Tại sao không phải fcitx5? Dù là xu thế, cộng đồng tích cực nhưng đôi khi nó không được cài sẵn mọi người cài đặt đôi khi khá phức tạp.
+Trong vài năm gần đây, Linux desktop đã chuyển dần từ **X11** sang **Wayland**
 
-Tại sao không đóng góp cho các dự án trên fcitx5 khác? Vì tôi lười =)) Mấy dự án suốt ngày cãi nhau vibe code, đè tem, phát minh lại cái đã có, đi ngược upstream, convert sang ngôn ngữ khác như rust, c,.. mệt lắm nên cứ tạm dùng cái này cho đến khi ai đó đứng lên làm một bộ gõ hoàn thiện hơn.
+Điều này kéo theo một thay đổi lớn đối với các bộ gõ tiếng Việt
 
-Những thay đổi của tôi:
+Trước đây, nhiều bộ gõ hoạt động bằng cách gửi lại phím (`Backspace`, `KeyEvent`, `XTestFakeKeyEvent`,...) theo kiểu Unikey trên Windows. Cách làm này hoạt động khá tốt trên X11 nhưng ngày càng không còn phù hợp với Wayland và giao thức `text-input-v3`
 
-- Sửa lại các phím tắt hoạt động ổn định trở lại.
-- Loại bỏ các chế độ gõ không hoạt động trên Wayland bao gồm: `ForwardKeyEvent I/II`, `Forward as commit`, và `XTestFakeKeyEvent`.
+Hiện nay, các bộ gõ gần như chỉ còn hai hướng chính:
 
-Những thay đổi đáng chú ý đã được thêm vào ibus-lotus so với ibus-bamboo:
+- **Pre-edit** (IME giữ văn bản trong bộ nhớ đệm rồi commit)
+- **Surrounding Text** (ứng dụng cho phép IME chỉnh sửa văn bản đã nhập)
 
-- Fix vấn đề lặp lại từ cuối trong một số trang web.
-- Fix vấn đề không nhấn được `super + space` để chuyển đổi bộ gõ ibus trên Wayland.
-- Fix vấn đề nhấp chuột bị hiện bảng Remote Interaction trên GNOME.
-- Fix vấn đề nhấp chuột bị nhảy từ đang gõ từ ô nhập liệu khác trên Wayland, đồng thời option `Bắt sự kiện chuột` cũng đã được loại bỏ.
-- Fix vấn đề không mở được bảng tùy chọn chế độ gõ trên Wayland cho GNOME và KDE Plasma.
+Mỗi hướng đều có ưu và nhược điểm:
 
-## Sơ lược tính năng
+- **Pre-edit**
+  - Hoạt động ổn định
+  - Được Wayland hỗ trợ tốt
+  - Tuy nhiên văn bản chưa xuất hiện ngay trong ứng dụng nên đôi khi không hiển thị gợi ý tìm kiếm hoặc autocomplete theo từng ký tự
 
-- Hỗ trợ tất cả các bảng mã phổ biến:
-  - Unicode, TCVN (ABC)
-  - VIQR, VNI, VPS, VISCII, BK HCM1, BK HCM2,…
-  - Unicode UTF-8, Unicode NCR - for Web editors.
-- Các kiểu gõ thông dụng:
-  - Telex, Telex W, Telex 2, Telex + VNI + VIQR
-  - VNI, VIQR, Microsoft layout
-- Nhiều tính năng hữu ích, dễ dàng tùy chỉnh:
-  - Kiểm tra chính tả (sử dụng từ điển/luật ghép vần)
+- **Surrounding Text**
+  - Trải nghiệm gần giống gõ trực tiếp
+  - Phù hợp với nhiều ô tìm kiếm
+  - Nhưng không phải ứng dụng nào cũng hỗ trợ tốt (đặc biệt là terminal, một số editor hoặc ứng dụng web)
+
+Đây không phải vấn đề riêng của IBus Lotus mà là giới hạn chung của hệ sinh thái Wayland hiện nay
+
+---
+
+## Triết lý của dự án
+
+IBus Lotus **không cố gắng chống lại upstream**
+
+Dự án sẽ không:
+
+- Dựa vào các cơ chế không được upstream hỗ trợ
+- Phát sinh thêm các cơ chế gửi phím kiểu X11
+- Giả lập Backspace hàng loạt
+- Đi vòng qua các API chính thức chỉ để "hoạt động giống Windows"
+
+Những cách này thường:
+
+- khó bảo trì
+- dễ lỗi theo từng compositor
+- dễ bị hỏng sau mỗi bản cập nhật
+
+Thay vào đó, IBus Lotus chỉ tập trung vào những gì upstream đang khuyến khích sử dụng
+
+---
+
+## Mục tiêu
+
+IBus Lotus chỉ tập trung vào việc:
+
+- Cải thiện **Pre-edit**
+- Cải thiện **Surrounding Text**
+
+Nếu upstream hoặc các ứng dụng cải thiện khả năng hỗ trợ IME thì IBus Lotus sẽ tận dụng các khả năng đó thay vì tự tạo thêm workaround
+
+---
+
+## Vì sao vẫn chọn IBus?
+
+Repository này tồn tại trước hết để phục vụ chính nhu cầu sử dụng của tác giả. Mình sử dụng GNOME với IBus hằng ngày nên việc tiếp tục bảo trì một engine IBus phù hợp với nhu cầu hơn là bắt đầu lại trên một framework khác.
+
+---
+
+## Khác gì so với [IBus Lotus](https://github.com/hien-ngo29/ibus-lotus)?
+
+Những thay đổi chính:
+
+- Sửa các phím tắt hoạt động ổn định hơn
+- Loại bỏ các cơ chế gõ cũ không còn phù hợp với Wayland:
+  - XTestFakeKeyEvent
+  - ForwardKeyEvent I
+  - ForwardKeyEvent II
+  - Forward as Commit
+  - Backspace Faker
+
+- Tập trung duy trì và cải thiện hai chế độ:
+  - Pre-edit
+  - Surrounding Text
+
+- Thiết kế lại cơ chế chuyển đổi:
+  - Pre-edit
+  - Surrounding Text
+  - English
+
+- Tinh gọn giao diện và loại bỏ các tuỳ chọn ít còn giá trị sử dụng
+
+---
+
+## Kế thừa từ IBus Lotus
+
+Dưới đây là các thay đổi và tính năng đáng chú ý được kế thừa từ dự án [IBus Lotus](https://github.com/hien-ngo29/ibus-lotus) của tác giả [hien-ngo29](https://github.com/hien-ngo29):
+
+### Thay đổi đáng chú ý so với [IBus Bamboo](https://github.com/BambooEngine/ibus-bamboo)
+- Sửa lỗi lặp từ cuối trên một số trang web.
+- Sửa lỗi không nhấn được phím tắt `Super + Space` để chuyển đổi bộ gõ trên Wayland.
+- Sửa lỗi click chuột làm xuất hiện thanh Remote Interaction trên GNOME.
+- Sửa lỗi click chuột làm nhảy từ đang gõ từ ô nhập liệu khác trên Wayland (đồng thời loại bỏ tùy chọn `Bắt sự kiện chuột`).
+- Sửa lỗi không mở được bảng tùy chọn chế độ gõ trên Wayland dành cho GNOME và KDE Plasma.
+
+### Sơ lược tính năng
+- Hỗ trợ tất cả các bảng mã phổ biến: Unicode, TCVN (ABC), VIQR, VNI, VPS, VISCII, BK HCM1, BK HCM2, Unicode UTF-8, Unicode NCR (dành cho Web editor).
+- Hỗ trợ các kiểu gõ thông dụng: Telex, Telex W, Telex 2, Telex + VNI + VIQR, VNI, VIQR, Microsoft layout.
+- Nhiều tính năng tiện ích, dễ dàng tùy chỉnh:
+  - Kiểm tra chính tả (sử dụng từ điển và luật ghép vần)
   - Dấu thanh chuẩn và dấu thanh kiểu mới
-  - Bỏ dấu tự do, Gõ tắt,...
-  - 2666 emojis từ [emojiOne](https://github.com/joypixels/emojione)
-- Sử dụng phím tắt <kbd>Shift</kbd>+<kbd>~</kbd> để loại trừ ứng dụng không dùng bộ gõ, chuyển qua lại giữa các chế độ gõ:
-  _ Pre-edit (default)
-  _ Surrounding text,...
+  - Bỏ dấu tự do, gõ tắt
+  - Tích hợp 2666 emojis từ [emojiOne](https://github.com/joypixels/emojione)
+- Sử dụng phím tắt <kbd>Shift</kbd>+<kbd>~</kbd> để loại trừ ứng dụng không dùng bộ gõ hoặc chuyển đổi qua lại giữa các chế độ gõ: Pre-edit (mặc định), Surrounding text, IBus ForwardKeyEvent...
   ![ibus-lotus](./demo.gif)
-- Khác với ibus-bamboo, ibus-lotus hiện tại đã hỗ trợ Wayland khá tốt trên 2 Desktop Environment chính đó là GNOME và KDE (Plasma). Chỉ cần yêu cầu các bạn cài một số extension và tool bên thứ ba (Xem hướng dẫn cài đặt bên dưới).
+- Hỗ trợ Wayland tốt trên hai môi trường Desktop Environment chính là GNOME và KDE (Plasma) khi thiết lập thêm các phần mở rộng hoặc công cụ bên thứ ba (chi tiết có thể tham khảo thêm tại hướng dẫn cài đặt của [repo IBus Lotus gốc](https://github.com/hien-ngo29/ibus-lotus)).
 
-## Installation
+---
 
-Note: vì một số lý do mà mình không kham nổi việc publish ibus-lotus cho các kho package manager của từng distro nên hiện tại các bạn chỉ có 2 lựa chọn để install đó là cài từ phiên bản prebuilt hoặc build từ source (Hoặc AUR nếu bạn dùng Arch)
+## Đóng góp
 
-### Arch Linux [![AUR version](https://img.shields.io/aur/version/ibus-lotus)](https://aur.archlinux.org/packages/ibus-lotus)
+Mọi Pull Request đều được chào đón
 
-ibus-lotus đã có mặt tại AUR do [shadichy](https://github.com/shadichy) là maintainer.
+Đặc biệt nếu bạn có thể:
 
-### Cài từ prebuilt
+- sửa lỗi
+- cải thiện trải nghiệm Wayland
+- tối ưu mã nguồn
+- hoặc bổ sung tài liệu
 
-1. ibus-lotus/ibus-bamboo sử dụng IME ibus. Hãy nhớ rõ và chắc rằng bạn đã setup ibus đúng cách. Trên hầu hết các Distro và Desktop Environment thông dụng ibus thường đã được cài sẵn nên bạn có thể bỏ qua bước này.
-2. Download file `ibus-lotus-<version>.zip` tại phần [Release của Repo](https://github.com/vuquan2005/ibus-lotus/releases/).
+Xin vui lòng mở Issue trước nếu thay đổi có ảnh hưởng lớn đến kiến trúc của dự án
 
-3. Giải nén file và install (thay `<version>` thành phiên bản đúng mà bạn đã download, ví dụ `1.0.0`):
+---
 
-```bash
-unzip ibus-lotus-<version>.zip
-cd ibus-lotus-<version>
+## Lời cảm ơn
 
-chmod +x ./install
-sudo ./install
-```
+Dự án được kế thừa và phát triển từ mã nguồn của bộ gõ [IBus Bamboo](https://github.com/BambooEngine/ibus-bamboo) và [IBus Lotus](https://github.com/hien-ngo29/ibus-lotus).
 
-Có thể bạn sẽ cần phải log out ra session của Desktop Environment bạn đang dùng và đăng nhập lại để ibus-lotus/ibus-bamboo xuất hiện trên Input Source trong Settings.
-
-4. Thêm Input Source tại Settings của Desktop Environment bạn đang dùng. Bạn sẽ thấy một input source mang tên `Vietnamese (Bamboo)` tại phần Vietnamese (các bạn có thể Google cách thêm Input Source cho Desktop Environment bạn đang dùng).
-
-### Cài từ source code
-
-Xem hướng dẫn [build từ source](./docs/building_instructions.md).
-
-### Note cho Wayland
-
-Hãy cài những thứ này để tránh việc không mở được bảng chọn chế độ gõ trên Wayland.
-
-**GNOME**: cài đặt extension [Window Call Extended](https://extensions.gnome.org/extension/4974/window-calls-extended/)
-
-**KDE Plasma**: cài đặt `kdotool` từ package manager của distro.
-
-**Nếu có thắc mắc hay trục trặc về việc cài đặt ibus-lotus hãy thoải mái [mở issue](https://github.com/vuquan2005/ibus-lotus/issues/new) trên repo này**
-
-## Xin cám ơn các contributor của IBus Bamboo <3
-
-<a href="https://github.com/vuquan2005/ibus-lotus/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=BambooEngine/ibus-bamboo" />
-</a>
+Xin chân thành cảm ơn tập thể [BambooEngine](https://github.com/BambooEngine), tác giả [hien-ngo29](https://github.com/hien-ngo29), cùng tất cả các contributor của các dự án gốc đã đóng góp và giúp cộng đồng Linux có một bộ gõ tiếng Việt chất lượng trong nhiều năm qua.
