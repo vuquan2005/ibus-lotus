@@ -10,12 +10,6 @@ int col = 0;
 const int KEYVAL = 1;
 const int MASK = 0;
 guint32 *key_pairs_tmp;
-char *input_mode_alert = "Ibus-bamboo cung cấp nhiều chế độ gõ khác nhau (1 chế độ gõ có gạch chân và 5 chế độ gõ không gạch chân; tránh nhầm lẫn chế độ gõ với kiểu gõ, các kiểu gõ bao gồm telex, vni, ...).\n\n\
-Một số lưu ý:\n\
-- Một ứng dụng có thể hoạt động tốt với chế độ gõ này trong khi không hoạt động tốt với chế độ gõ khác.\n\
-- Các chế độ gõ được lưu riêng biệt cho mỗi phần mềm (firefox có thể đang dùng chế độ 3, trong khi libreoffice thì lại dùng chế độ 2).\n\
-- Bạn có thể dùng chế độ Thêm vào danh sách loại trừ để không gõ tiếng Việt trong một chương trình nào đó.\n\
-- Để gõ ký tự ~ hãy nhấn tổ hợp Shift+~ 2 lần.";
 char *fix_fb_alert = "Bật tùy chọn này nếu bạn gặp tình trạng lặp chữ khi chat trong Facebook, Messenger.\n\
 Lưu ý: Tính năng này có thể khiến thanh địa chỉ trên trình duyệt Google Chrome hoạt động không chính xác.";
 char *labels[TOTAL_MASKS_PER_ROW] = {"Ctrl", "Alt", "Shift", "Super"};
@@ -299,14 +293,11 @@ combo_changed_cb (GtkComboBox *combo, gpointer  data)
       model = gtk_combo_box_get_model (combo);
       gtk_tree_model_get (model, &iter, 1, &effect, -1);
 
-      if (effect > 0 && data != NULL) {
-        show_input_mode_alert((char*)data);
-      }
       saveInputMode(effect+1);
     }
 }
 
-GtkWidget* create_new_dropdown(int mode, char *alert, char **options, int n) {
+GtkWidget* create_new_dropdown(int mode, char **options, int n) {
   GtkListStore *store;
   GtkTreeIter iter;
   GtkWidget *combobox;
@@ -329,7 +320,7 @@ GtkWidget* create_new_dropdown(int mode, char *alert, char **options, int n) {
 			       mode-1 );
   g_signal_connect (combobox, "changed",
                     G_CALLBACK (combo_changed_cb),
-                    alert);
+                    NULL);
   renderer = gtk_cell_renderer_text_new ();
   gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (combobox), renderer, TRUE);
   gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (combobox), renderer,
@@ -377,7 +368,7 @@ static void add_page_other_settings_content(GtkWidget *parent, GtkWidget *w, gui
   label1 = gtk_label_new("Chế độ gõ mặc định");
   gtk_grid_attach(GTK_GRID(grid), label1, 0, 0, 1, 1); // column, row, width, height
 
-  dropdown1 = create_new_dropdown(mode, input_mode_alert, options, 7-1);
+  dropdown1 = create_new_dropdown(mode, options, 7-1);
   gtk_grid_attach(GTK_GRID(grid), dropdown1, 1, 0, 1, 1);
 
   // Set consistent padding for all rows
