@@ -215,8 +215,7 @@ func (e *IBusBambooEngine) processShortcutKey(keyVal, keyCode, state uint32) (bo
 	// fmt.Println("====== Process shortcut for input mode switch")
 	if e.isInputModeLTOpened {
 		return e.ltProcessKeyEvent(keyVal, keyCode, state)
-	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) &&
-		e.getWmClass() != "" {
+	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
 		e.resetBuffer()
 		e.isInputModeLTOpened = true
 		e.lastKeyWithShift = true
@@ -312,19 +311,21 @@ func (e *IBusBambooEngine) openLookupTable() {
 }
 
 func formatWmClassToSingleAppName(wmClass string) string {
+	if wmClass == "" {
+		return "Unknown"
+	}
 	var parts = strings.Split(wmClass, ".")
 	var appName = parts[len(parts)-1]
+	if len(appName) == 0 {
+		return "Unknown"
+	}
 	appName = strings.ToUpper(string(appName[0])) + appName[1:]
 	return appName
 }
 
 func (e *IBusBambooEngine) ltProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, bool) {
-	var wmClasses = e.getWmClass()
 	// e.HideLookupTable()
 	// e.HideAuxiliaryText()
-	if wmClasses == "" {
-		return true, true
-	}
 	if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
 		e.closeInputModeCandidates()
 		return true, false
@@ -367,7 +368,11 @@ func (e *IBusBambooEngine) ltProcessKeyEvent(keyVal uint32, keyCode uint32, stat
 
 func (e *IBusBambooEngine) commitInputModeCandidate() {
 	var im = e.inputModeLookupTable.CursorPos + 1
-	e.config.InputModeMapping[e.getWmClass()] = int(im)
+	if e.getWmClass() == "" {
+		e.config.DefaultInputMode = int(im)
+	} else {
+		e.config.InputModeMapping[e.getWmClass()] = int(im)
+	}
 
 	config.SaveConfig(e.config, e.engineName)
 	e.propList = GetPropListByConfig(e.config)
