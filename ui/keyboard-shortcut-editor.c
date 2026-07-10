@@ -348,8 +348,6 @@ char *options[] = {
   "2. Surrounding Text (không gạch chân)",
   "3. ForwardKeyEvent I (không gạch chân)",
   "4. ForwardKeyEvent II (không gạch chân)",
-  "5. Forward as Commit (không gạch chân)",
-  "6. XTestFakeKeyEvent (không gạch chân)",
 };
 
 static void add_page_other_settings_content(GtkWidget *parent, GtkWidget *w, guint flags, int mode)
@@ -368,7 +366,7 @@ static void add_page_other_settings_content(GtkWidget *parent, GtkWidget *w, gui
   label1 = gtk_label_new("Chế độ gõ mặc định");
   gtk_grid_attach(GTK_GRID(grid), label1, 0, 0, 1, 1); // column, row, width, height
 
-  dropdown1 = create_new_dropdown(mode, options, 7-1);
+  dropdown1 = create_new_dropdown(mode, options, 4);
   gtk_grid_attach(GTK_GRID(grid), dropdown1, 1, 0, 1, 1);
 
   // Set consistent padding for all rows

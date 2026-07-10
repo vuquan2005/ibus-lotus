@@ -21,6 +21,7 @@ package main
 
 import (
 	"ibus-bamboo/config"
+	"strconv"
 
 	"github.com/BambooEngine/bamboo-core"
 	ibus "github.com/LotusInputEngine/goibus"
@@ -154,6 +155,18 @@ func GetPropListByConfig(c *config.Config) *ibus.PropList {
 			Icon:      "tools-check-spelling",
 			Symbol:    dbus.MakeVariant(ibus.NewText("")),
 			SubProps:  dbus.MakeVariant(GetSpellCheckingPropListByConfig(c)),
+		},
+		&ibus.Property{
+			Name:      "IBusProperty",
+			Key:       "-",
+			Type:      ibus.PROP_TYPE_MENU,
+			Label:     dbus.MakeVariant(ibus.NewText("Chế độ gõ")),
+			Tooltip:   dbus.MakeVariant(ibus.NewText("Chế độ gõ mặc định")),
+			Sensitive: true,
+			Visible:   true,
+			Icon:      "preferences-system",
+			Symbol:    dbus.MakeVariant(ibus.NewText("")),
+			SubProps:  dbus.MakeVariant(GetInputModePropListByConfig(c)),
 		},
 		&ibus.Property{
 			Name:      "IBusProperty",
@@ -360,6 +373,37 @@ func GetSpellCheckingPropListByConfig(c *config.Config) *ibus.PropList {
 			SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
 		},
 	)
+}
+
+func GetInputModePropListByConfig(c *config.Config) *ibus.PropList {
+	var inputModeProperties []*ibus.Property
+	var options = []string{
+		"1. Pre-edit (có gạch chân)",
+		"2. Surrounding Text (không gạch chân)",
+		"3. ForwardKeyEvent I (không gạch chân)",
+		"4. ForwardKeyEvent II (không gạch chân)",
+	}
+	for i, option := range options {
+		var mode = i + 1
+		var state = ibus.PROP_STATE_UNCHECKED
+		if mode == c.DefaultInputMode {
+			state = ibus.PROP_STATE_CHECKED
+		}
+		var imProp = &ibus.Property{
+			Name:      "IBusProperty",
+			Key:       "InputMode::" + strconv.Itoa(mode),
+			Type:      ibus.PROP_TYPE_RADIO,
+			Label:     dbus.MakeVariant(ibus.NewText(option)),
+			Tooltip:   dbus.MakeVariant(ibus.NewText(option)),
+			Sensitive: true,
+			Visible:   true,
+			State:     state,
+			Symbol:    dbus.MakeVariant(ibus.NewText("I")),
+			SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
+		}
+		inputModeProperties = append(inputModeProperties, imProp)
+	}
+	return ibus.NewPropList(inputModeProperties...)
 }
 
 func GetOptionsPropListByConfig(c *config.Config) *ibus.PropList {
