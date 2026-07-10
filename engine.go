@@ -94,19 +94,20 @@ Return:
 This function gets called whenever a key is pressed.
 */
 func (e *IBusBambooEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, *dbus.Error) {
-	if !isValidState(state) {
-		return false, nil
-	}
-
 	if state&IBusReleaseMask != 0 {
 		// fmt.Println("Ignore key-up event")
 		return false, nil
 	}
-	fmt.Printf("\n")
-	log.Printf(">>>>ProcessKeyEvent >  %d | state %d keyVal 0x%04x | %c <<<<\n", len(keyPressChan), state, keyVal, rune(keyVal))
+
 	if ret, retValue := e.processShortcutKey(keyVal, keyCode, state); ret {
 		return retValue, nil
 	}
+
+	if !isValidState(state) {
+		return false, nil
+	}
+	fmt.Printf("\n")
+	log.Printf(">>>>ProcessKeyEvent >  %d | state %d keyVal 0x%04x | %c <<<<\n", len(keyPressChan), state, keyVal, rune(keyVal))
 	if e.inBackspaceWhiteList() {
 		return e.bsProcessKeyEvent(keyVal, keyCode, state)
 	}
