@@ -209,7 +209,11 @@ func (e *IBusBambooEngine) processShortcutKey(keyVal, keyCode, state uint32) (bo
 	// fmt.Println("===Process shortcut for input method switcher")
 	if e.isShortcutKeyPressed(keyVal, state, KSViEnSwitch) {
 		e.englishMode = !e.englishMode
-		notify(e.englishMode)
+		if e.englishMode {
+			e.showAuxToast("English")
+		} else {
+			e.showAuxToast("Vietnamese")
+		}
 		e.resetBuffer()
 		return true, true
 	}
@@ -579,26 +583,6 @@ func (e *IBusBambooEngine) getLatestWmClass() string {
 
 func (e *IBusBambooEngine) checkInputMode(im int) bool {
 	return e.getInputMode() == im
-}
-
-func notify(enMode bool) {
-	var title = "Vietnamese"
-	var msg = "Press Shortcut keys to switch input language"
-	if enMode {
-		title = "English"
-		msg = "Press Shortcut keys to switch input language"
-	}
-	conn, err := dbus.SessionBus()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	obj := conn.Object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
-	call := obj.Call("org.freedesktop.Notifications.Notify", 0, "", uint32(281025),
-		"", title, msg, []string{}, map[string]dbus.Variant{}, int32(3000))
-	if call.Err != nil {
-		fmt.Println(call.Err)
-	}
 }
 
 var (
