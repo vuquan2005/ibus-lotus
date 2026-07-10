@@ -94,19 +94,20 @@ Return:
 This function gets called whenever a key is pressed.
 */
 func (e *IBusBambooEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, *dbus.Error) {
-	if !isValidState(state) {
-		return false, nil
-	}
-
 	if state&IBusReleaseMask != 0 {
 		// fmt.Println("Ignore key-up event")
 		return false, nil
 	}
-	fmt.Printf("\n")
-	log.Printf(">>>>ProcessKeyEvent >  %d | state %d keyVal 0x%04x | %c <<<<\n", len(keyPressChan), state, keyVal, rune(keyVal))
+
 	if ret, retValue := e.processShortcutKey(keyVal, keyCode, state); ret {
 		return retValue, nil
 	}
+
+	if !isValidState(state) {
+		return false, nil
+	}
+	fmt.Printf("\n")
+	log.Printf(">>>>ProcessKeyEvent >  %d | state %d keyVal 0x%04x | %c <<<<\n", len(keyPressChan), state, keyVal, rune(keyVal))
 	if e.inBackspaceWhiteList() {
 		return e.bsProcessKeyEvent(keyVal, keyCode, state)
 	}
@@ -369,6 +370,14 @@ func (e *IBusBambooEngine) PropertyActivate(propName string, propState uint32) *
 			e.macroTable.Reload(e.engineName, e.config.IBflags&config.IBautoCapitalizeMacro != 0)
 		}
 	}
+	if propName == PropKeyEnablePreedit {
+		e.englishMode = false
+		if propState == ibus.PROP_STATE_CHECKED {
+			e.config.DefaultInputMode = config.PreeditIM
+		} else {
+			e.config.DefaultInputMode = config.SurroundingTextIM
+		}
+	}
 
 	var im, foundIm = getValueFromPropKey(propName, "InputMode")
 	if foundIm && propState == ibus.PROP_STATE_CHECKED {
@@ -384,7 +393,7 @@ func (e *IBusBambooEngine) PropertyActivate(propName string, propState uint32) *
 	if propName != "-" {
 		config.SaveConfig(e.config, e.engineName)
 	}
-	e.propList = GetPropListByConfig(e.config)
+	e.propList = GetPropListByConfig(e.config, e.englishMode)
 
 	var inputMethod = bamboo.ParseInputMethod(e.config.InputMethodDefinitions, e.config.InputMethod)
 	e.preeditor = bamboo.NewEngine(inputMethod, e.config.Flags)

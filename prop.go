@@ -46,6 +46,7 @@ const (
 	PropKeyAutoCapitalizeMacro          = "auto_capitalize_macro"
 	PropKeyIMQuickSwitchEnabled         = "im_quick_switch"
 	PropKeyRestoreKeyStrokes            = "restore_key_strokes"
+	PropKeyEnablePreedit                = "enable_preedit"
 )
 
 var IBusSeparator = &ibus.Property{
@@ -60,7 +61,11 @@ var IBusSeparator = &ibus.Property{
 	SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
 }
 
-func GetPropListByConfig(c *config.Config) *ibus.PropList {
+func GetPropListByConfig(c *config.Config, englishMode bool) *ibus.PropList {
+	var preeditChecked = ibus.PROP_STATE_UNCHECKED
+	if !englishMode && c.DefaultInputMode == config.PreeditIM {
+		preeditChecked = ibus.PROP_STATE_CHECKED
+	}
 	var aboutText = "IBus " + EngineName + " " + Version
 	if !*embedded {
 		aboutText += " (Debug)"
@@ -154,6 +159,18 @@ func GetPropListByConfig(c *config.Config) *ibus.PropList {
 			Icon:      "tools-check-spelling",
 			Symbol:    dbus.MakeVariant(ibus.NewText("")),
 			SubProps:  dbus.MakeVariant(GetSpellCheckingPropListByConfig(c)),
+		},
+		&ibus.Property{
+			Name:      "IBusProperty",
+			Key:       PropKeyEnablePreedit,
+			Type:      ibus.PROP_TYPE_TOGGLE,
+			Label:     dbus.MakeVariant(ibus.NewText("Bật Pre-edit (có gạch chân)")),
+			Tooltip:   dbus.MakeVariant(ibus.NewText("Bật chế độ Pre-edit (có gạch chân)")),
+			Sensitive: true,
+			Visible:   true,
+			State:     preeditChecked,
+			Symbol:    dbus.MakeVariant(ibus.NewText("P")),
+			SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
 		},
 		&ibus.Property{
 			Name:      "IBusProperty",
@@ -361,6 +378,8 @@ func GetSpellCheckingPropListByConfig(c *config.Config) *ibus.PropList {
 		},
 	)
 }
+
+
 
 func GetOptionsPropListByConfig(c *config.Config) *ibus.PropList {
 	// tone

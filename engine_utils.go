@@ -27,6 +27,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -52,7 +53,7 @@ func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 		var inputMethod = bamboo.ParseInputMethod(cfg.InputMethodDefinitions, cfg.InputMethod)
 		baseEngine := ibus.BaseEngine(conn, objectPath)
 		var engine = NewIbusBambooEngine(engineName, config.LoadConfig(engineName), &baseEngine, bamboo.NewEngine(inputMethod, cfg.Flags))
-		engine.propList = GetPropListByConfig(cfg)
+		engine.propList = GetPropListByConfig(cfg, engine.englishMode)
 		engine.shouldEnqueuKeyStrokes = true
 		ibus.PublishEngine(conn, objectPath, engine)
 		if *gui {
@@ -205,22 +206,29 @@ func (e *IBusBambooEngine) processShortcutKey(keyVal, keyCode, state uint32) (bo
 		e.shouldRestoreKeyStrokes = true
 		return false, false
 	}
-	// fmt.Println("===Process shortcut for input method switcher")
-	if e.isShortcutKeyPressed(keyVal, state, KSViEnSwitch) {
-		e.englishMode = !e.englishMode
-		notify(e.englishMode)
-		e.resetBuffer()
-		return true, true
-	}
 	// fmt.Println("====== Process shortcut for input mode switch")
 	if e.isInputModeLTOpened {
 		return e.ltProcessKeyEvent(keyVal, keyCode, state)
-	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) &&
-		e.getWmClass() != "" {
+	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
 		e.resetBuffer()
-		e.isInputModeLTOpened = true
-		e.lastKeyWithShift = true
-		e.openLookupTable()
+		var msg string
+		if e.englishMode {
+			e.englishMode = false
+			e.config.DefaultInputMode = config.PreeditIM
+			msg = "Pre-edit"
+		} else if e.config.DefaultInputMode == config.PreeditIM {
+			e.englishMode = false
+			e.config.DefaultInputMode = config.SurroundingTextIM
+			msg = "Surrounding Text"
+		} else {
+			e.englishMode = true
+			msg = "English"
+		}
+		config.SaveConfig(e.config, e.engineName)
+		e.showAuxToast(msg)
+		
+		e.propList = GetPropListByConfig(e.config, e.englishMode)
+		e.RegisterProperties(e.propList)
 		return true, true
 	}
 
@@ -289,7 +297,7 @@ func (e *IBusBambooEngine) openLookupTable() {
 		wmClass = wmClasses[1]
 	}
 
-	e.UpdateAuxiliaryText(ibus.NewText("Nhấn (1/2/3/4/5/6/7) để lưu tùy chọn của bạn"), true)
+	e.UpdateAuxiliaryText(ibus.NewText("Nhấn (1/2/3) để lưu tùy chọn của bạn"), true)
 
 	lt := ibus.NewLookupTable()
 	lt.PageSize = uint32(len(config.ImLookupTable))
@@ -312,19 +320,21 @@ func (e *IBusBambooEngine) openLookupTable() {
 }
 
 func formatWmClassToSingleAppName(wmClass string) string {
+	if wmClass == "" {
+		return "Unknown"
+	}
 	var parts = strings.Split(wmClass, ".")
 	var appName = parts[len(parts)-1]
+	if len(appName) == 0 {
+		return "Unknown"
+	}
 	appName = strings.ToUpper(string(appName[0])) + appName[1:]
 	return appName
 }
 
 func (e *IBusBambooEngine) ltProcessKeyEvent(keyVal uint32, keyCode uint32, state uint32) (bool, bool) {
-	var wmClasses = e.getWmClass()
 	// e.HideLookupTable()
 	// e.HideAuxiliaryText()
-	if wmClasses == "" {
-		return true, true
-	}
 	if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
 		e.closeInputModeCandidates()
 		return true, false
@@ -367,10 +377,14 @@ func (e *IBusBambooEngine) ltProcessKeyEvent(keyVal uint32, keyCode uint32, stat
 
 func (e *IBusBambooEngine) commitInputModeCandidate() {
 	var im = e.inputModeLookupTable.CursorPos + 1
-	e.config.InputModeMapping[e.getWmClass()] = int(im)
+	if e.getWmClass() == "" {
+		e.config.DefaultInputMode = int(im)
+	} else {
+		e.config.InputModeMapping[e.getWmClass()] = int(im)
+	}
 
 	config.SaveConfig(e.config, e.engineName)
-	e.propList = GetPropListByConfig(e.config)
+	e.propList = GetPropListByConfig(e.config, e.englishMode)
 	e.RegisterProperties(e.propList)
 }
 
@@ -562,22 +576,26 @@ func (e *IBusBambooEngine) checkInputMode(im int) bool {
 	return e.getInputMode() == im
 }
 
-func notify(enMode bool) {
-	var title = "Vietnamese"
-	var msg = "Press Shortcut keys to switch input language"
-	if enMode {
-		title = "English"
-		msg = "Press Shortcut keys to switch input language"
+var (
+	auxTimer *time.Timer
+	auxMutex sync.Mutex
+)
+
+const auxToastDuration = 500 * time.Millisecond
+
+func (e *IBusBambooEngine) showAuxToast(msg string) {
+	auxMutex.Lock()
+	defer auxMutex.Unlock()
+
+	if auxTimer != nil {
+		auxTimer.Stop()
 	}
-	conn, err := dbus.SessionBus()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	obj := conn.Object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
-	call := obj.Call("org.freedesktop.Notifications.Notify", 0, "", uint32(281025),
-		"", title, msg, []string{}, map[string]dbus.Variant{}, int32(3000))
-	if call.Err != nil {
-		fmt.Println(call.Err)
-	}
+
+	e.UpdateAuxiliaryText(ibus.NewText(msg), true)
+
+	auxTimer = time.AfterFunc(auxToastDuration, func() {
+		auxMutex.Lock()
+		defer auxMutex.Unlock()
+		e.HideAuxiliaryText()
+	})
 }
