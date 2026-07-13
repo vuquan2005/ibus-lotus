@@ -52,8 +52,11 @@ char * x11GetStringProperty(Display *display, Window window, char * propName) {
     filterAtom = XInternAtom(display, propName, True);
     status = XGetWindowProperty(display, window, filterAtom, 0, MaxPropertyLen, False, AnyPropertyType,
         &actualType, &actualFormat, &len, &bytesAfter, &uc);
-    if (status == Success) {
-        return uchar2char(uc, len);
+    if (status == Success && uc != NULL) {
+        char *str = uchar2char(uc, len);
+        char *result = strdup(str);
+        XFree(uc);
+        return result;
     }
     return NULL;
 }
@@ -64,17 +67,20 @@ char * x11GetFocusWindowClassByProp(Display *display, char * propName) {
     XGetInputFocus(display, &w, &revertTo);
     for (int i=0; i<MaxWmClassesLen; i++) {
         char * strClass = x11GetStringProperty(display, w, propName);
-        if (strClass != NULL && strstr(strClass, "FocusProxy") == NULL) {
-            return strClass;
+        if (strClass != NULL) {
+            if (strstr(strClass, "FocusProxy") == NULL) {
+                return strClass;
+            }
+            free(strClass);
         }
-        Window * childrenWindows;
-        Window parentWindow, rootWindow;
+        Window * childrenWindows = NULL;
+        Window parentWindow = 0, rootWindow = 0;
         unsigned int nChild = 0;
-        XQueryTree(display, w, &rootWindow, &parentWindow, &childrenWindows, &nChild);
-        if (childrenWindows != NULL) {
-            //XFree(childrenWindows);
+        int status = XQueryTree(display, w, &rootWindow, &parentWindow, &childrenWindows, &nChild);
+        if (status != 0 && childrenWindows != NULL) {
+            XFree(childrenWindows);
         }
-        if (rootWindow == parentWindow) {
+        if (status == 0 || rootWindow == parentWindow) {
             break;
         }
         w = parentWindow;
