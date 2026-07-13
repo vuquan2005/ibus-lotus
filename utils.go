@@ -56,7 +56,7 @@ const (
 	KSRestoreKeyStrokes
 	KSViEnSwitch
 	_KSEmojiDialog //deprecated
-	KSHexadecimal
+	_KSHexadecimal //deprecated
 )
 
 var DefaultBrowserList = []string{

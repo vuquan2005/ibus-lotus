@@ -46,7 +46,6 @@ type IBusLotusEngine struct {
 	macroTable             *MacroTable
 	wmClasses              string
 	isInputModeLTOpened    bool
-	isInHexadecimal        bool
 	inputModeLookupTable   *ibus.LookupTable
 	capabilities           uint32
 	keyPressDelay          int

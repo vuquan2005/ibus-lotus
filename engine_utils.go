@@ -167,21 +167,7 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 	if keyVal == IBusCapsLock {
 		return true, false
 	}
-	// fmt.Println("====== Process hexadecimal key pressed")
-	if e.isShortcutKeyPressed(keyVal, state, KSHexadecimal) {
-		e.resetBuffer()
-		e.isInHexadecimal = true
-		e.setupHexadecimalProcessKeyEvent()
-		return true, true
-	}
-	if e.isInHexadecimal {
-		if e.isShortcutKeyPressed(keyVal, state, KSHexadecimal) {
-			e.closeHexadecimalInput()
-			e.updateLastKeyWithShift(keyVal, state)
-			return true, false
-		}
-		return true, e.hexadecimalProcessKeyEvent(keyVal, keyCode, state)
-	}
+
 
 	if e.config.DefaultInputMode == config.UsIM {
 		return true, false
