@@ -69,6 +69,12 @@ func main() {
 		conn := bus.GetDbusConn()
 		ibus.NewFactory(conn, engine)
 
+		go func() {
+			<-conn.Context().Done()
+			log.Println("DBus connection closed, exiting...")
+			os.Exit(0)
+		}()
+
 		select {}
 	} else {
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -89,6 +95,12 @@ func main() {
 		ibus.NewFactory(conn, GetIBusEngineCreator())
 
 		bus.CallMethod("SetGlobalEngine", 0, EngineName+"Standalone")
+
+		go func() {
+			<-conn.Context().Done()
+			log.Println("DBus connection closed, exiting...")
+			os.Exit(0)
+		}()
 
 		select {}
 	}

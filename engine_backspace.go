@@ -189,7 +189,8 @@ func (e *IBusLotusEngine) updatePreviousTextInBatch(oldText, newText string, isW
 	}
 	// isDirty means containing runes that are not committed
 	var isDirty = false
-	for i := 0; i < len(keyPressChan); i++ {
+	length := len(keyPressChan)
+	for i := 0; i < length; i++ {
 		var keyEvents = <-keyPressChan
 		var keyVal, keyCode, state = keyEvents[0], keyEvents[1], keyEvents[2]
 		isValidKey := isValidState(state) && e.isValidKeyVal(keyVal)
