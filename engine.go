@@ -46,14 +46,11 @@ type IBusLotusEngine struct {
 	macroTable             *MacroTable
 	wmClasses              string
 	isInputModeLTOpened    bool
-	isEmojiLTOpened        bool
 	isInHexadecimal        bool
-	emojiLookupTable       *ibus.LookupTable
 	inputModeLookupTable   *ibus.LookupTable
 	capabilities           uint32
 	keyPressDelay          int
 	isFirstTimeSendingBS   bool
-	emoji                  *EmojiEngine
 	isSurroundingTextReady bool
 	lastKeyWithShift       bool
 	lastCommitText         int64
@@ -119,13 +116,6 @@ func (e *IBusLotusEngine) FocusIn() *dbus.Error {
 	e.checkWmClass(latestWm)
 	e.RegisterProperties(e.propList)
 	e.RequireSurroundingText()
-	if e.isShortcutKeyEnable(KSEmojiDialog) && emojiTrie != nil && len(emojiTrie.Children) == 0 {
-		var err error
-		emojiTrie, err = loadEmojiOne(DictEmojiOne)
-		if err != nil {
-			panic(fmt.Sprintf("failed to load emojiTrie from %s: %s", DictEmojiOne, err))
-		}
-	}
 	if e.config.IBflags&config.IBspellCheckWithDicts != 0 && len(dictionary) == 0 {
 		dictionary, _ = loadDictionary(DictVietnameseCm)
 	}
@@ -195,9 +185,6 @@ func (e *IBusLotusEngine) SetSurroundingText(text dbus.Variant, cursorPos uint32
 }
 
 func (e *IBusLotusEngine) PageUp() *dbus.Error {
-	if e.isEmojiLTOpened && e.emojiLookupTable.PageUp() {
-		e.updateEmojiLookupTable()
-	}
 	if e.isInputModeLTOpened && e.inputModeLookupTable.PageUp() {
 		e.updateInputModeLT()
 	}
@@ -205,9 +192,6 @@ func (e *IBusLotusEngine) PageUp() *dbus.Error {
 }
 
 func (e *IBusLotusEngine) PageDown() *dbus.Error {
-	if e.isEmojiLTOpened && e.emojiLookupTable.PageDown() {
-		e.updateEmojiLookupTable()
-	}
 	if e.isInputModeLTOpened && e.inputModeLookupTable.PageDown() {
 		e.updateInputModeLT()
 	}
@@ -215,9 +199,6 @@ func (e *IBusLotusEngine) PageDown() *dbus.Error {
 }
 
 func (e *IBusLotusEngine) CursorUp() *dbus.Error {
-	if e.isEmojiLTOpened && e.emojiLookupTable.CursorUp() {
-		e.updateEmojiLookupTable()
-	}
 	if e.isInputModeLTOpened && e.inputModeLookupTable.CursorUp() {
 		e.updateInputModeLT()
 	}
@@ -225,9 +206,6 @@ func (e *IBusLotusEngine) CursorUp() *dbus.Error {
 }
 
 func (e *IBusLotusEngine) CursorDown() *dbus.Error {
-	if e.isEmojiLTOpened && e.emojiLookupTable.CursorDown() {
-		e.updateEmojiLookupTable()
-	}
 	if e.isInputModeLTOpened && e.inputModeLookupTable.CursorDown() {
 		e.updateInputModeLT()
 	}
@@ -235,10 +213,6 @@ func (e *IBusLotusEngine) CursorDown() *dbus.Error {
 }
 
 func (e *IBusLotusEngine) CandidateClicked(index uint32, button uint32, state uint32) *dbus.Error {
-	if e.isEmojiLTOpened && e.updateCursorPosInEmojiTable(index) {
-		e.commitEmojiCandidate()
-		e.closeEmojiCandidates()
-	}
 	if e.isInputModeLTOpened && e.inputModeLookupTable.SetCursorPos(index) {
 		e.commitInputModeCandidate()
 		e.closeInputModeCandidates()

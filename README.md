@@ -146,7 +146,7 @@ Dưới đây là các thay đổi và tính năng đáng chú ý được kế 
 
   - Bỏ dấu tự do, gõ tắt
 
-  - Tích hợp 2666 emojis từ [emojiOne](https://github.com/joypixels/emojione)
+  - Tích hợp 2666 emojis từ [emojiOne](https://github.com/joypixels/emojione) (hiện tại mình đã loại bỏ phần này, bạn có thể dùng ctrl+. hoặc super+. thử hoặc cài ứng dụng emoji khác)
 
 - Hỗ trợ Wayland tốt trên hai môi trường Desktop Environment chính là GNOME và KDE (Plasma) khi thiết lập thêm các phần mở rộng hoặc công cụ bên thứ ba (chi tiết có thể tham khảo thêm tại hướng dẫn cài đặt của [repo IBus Lotus gốc](https://github.com/LotusInputEngine/ibus-lotus)).
 

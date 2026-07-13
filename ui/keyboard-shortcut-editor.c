@@ -2,7 +2,7 @@
 #include <gtk/gtk.h>
 #include "_cgo_export.h"
 
-#define TOTAL_ROWS 4
+#define TOTAL_ROWS 3
 #define TOTAL_MASKS_PER_ROW 4
 
 // Go Config.Shortcuts has 10 elements (5 shortcut pairs)
@@ -16,7 +16,7 @@
 #define SHORTCUT_HEXADECIMAL 8         // KSHexadecimal
 
 // Row indices in UI
-#define ROW_EMOJI 2
+#define ROW_HEXADECIMAL 2
 
 int row = 0;
 int col = 0;
@@ -27,14 +27,13 @@ guint32 *key_pairs_tmp;
 /*
  * get_shortcut_pair_idx
  *
- * Maps a GUI row index (0-3) to the corresponding key pair start index in
- * the configuration array (key_pairs_tmp), skipping SHORTCUT_VI_EN_SWITCH.
+ * Maps a GUI row index (0-2) to the corresponding key pair start index in
+ * the configuration array (key_pairs_tmp), skipping SHORTCUT_VI_EN_SWITCH and SHORTCUT_EMOJI_DIALOG.
  */
 int get_shortcut_pair_idx(int row) {
   if (row == 0) return SHORTCUT_INPUT_MODE_SWITCH;
   if (row == 1) return SHORTCUT_RESTORE_KEY_STROKES;
-  if (row == 2) return SHORTCUT_EMOJI_DIALOG;
-  if (row == 3) return SHORTCUT_HEXADECIMAL;
+  if (row == 2) return SHORTCUT_HEXADECIMAL;
   return 0;
 }
 
@@ -46,7 +45,7 @@ int masks[TOTAL_MASKS_PER_ROW] = {GDK_CONTROL_MASK, GDK_MOD1_MASK, GDK_SHIFT_MAS
 int keyvals[TOTAL_MASKS_PER_ROW] = {GDK_KEY_Control_L, GDK_KEY_Alt_L, GDK_KEY_Shift_L,
                            GDK_KEY_Super_L};
 char *text_arr[TOTAL_ROWS] = {"Chuyển chế độ gõ", "Khôi phục phím",
-                                "Emoji", "Hexadecimal"};
+                                "Hexadecimal"};
 GtkWidget *maskWidgets[TOTAL_MASKS_PER_ROW * TOTAL_ROWS];
 GtkWidget *keyWidgets[TOTAL_ROWS];
 int usIM = 0;
@@ -360,8 +359,8 @@ int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfg_
    */
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
 
-  // If in US Input Mode, we only show rows from ROW_EMOJI onwards (Emoji and Hexadecimal)
-  int i = usIM ? ROW_EMOJI : 0;
+  // If in US Input Mode, we only show rows from ROW_HEXADECIMAL onwards (Hexadecimal)
+  int i = usIM ? ROW_HEXADECIMAL : 0;
   for (; i < TOTAL_ROWS; i++) {
     add_shortcut_box(vbox, text_arr[i], i);
   }
