@@ -159,7 +159,6 @@ func (e *IBusLotusEngine) SetSurroundingText(text dbus.Variant, cursorPos uint32
 	e.Lock()
 	defer func() {
 		e.Unlock()
-		e.isSurroundingTextReady = false
 		if err := recover(); err != nil {
 			fmt.Println(err)
 		}
@@ -171,11 +170,15 @@ func (e *IBusLotusEngine) SetSurroundingText(text dbus.Variant, cursorPos uint32
 		}
 		var cs = s[:cursorPos]
 		fmt.Println("Surrounding Text: ", string(cs))
+		if len(cs) == 0 || cs[len(cs)-1] == ' ' || bamboo.IsWordBreakSymbol(cs[len(cs)-1]) || bamboo.IsPunctuationMark(cs[len(cs)-1]) {
+			// Do not consume isSurroundingTextReady yet as it is not a rebuildable word.
+			return nil
+		}
+		e.isSurroundingTextReady = false
 		e.preeditor.Reset()
 		for i := len(cs) - 1; i >= 0; i-- {
-			// workaround for spell checking
-			if bamboo.IsPunctuationMark(cs[i]) && e.preeditor.CanProcessKey(cs[i]) {
-				cs[i] = ' '
+			if cs[i] == ' ' || cs[i] == '\t' || cs[i] == '\n' || bamboo.IsWordBreakSymbol(cs[i]) || bamboo.IsPunctuationMark(cs[i]) {
+				break
 			}
 			e.preeditor.ProcessKey(cs[i], bamboo.EnglishMode|bamboo.InReverseOrder)
 		}

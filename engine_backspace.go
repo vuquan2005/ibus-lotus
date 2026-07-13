@@ -49,6 +49,9 @@ func (e *IBusLotusEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, state
 			e.bsCommitText([]rune(e.getPreeditString()))
 			return true, nil
 		}
+		if keyVal == IBusBackSpace {
+			e.isSurroundingTextReady = true
+		}
 		return false, nil
 	}
 
@@ -61,6 +64,8 @@ func (e *IBusLotusEngine) bsProcessKeyEvent(keyVal uint32, keyCode uint32, state
 					e.preeditor.RestoreLastWord(false)
 				}
 				e.preeditor.RemoveLastChar(false)
+			} else {
+				e.isSurroundingTextReady = true
 			}
 			return false, nil
 		}
@@ -114,6 +119,8 @@ func (e *IBusLotusEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
 				e.updatePreviousText(oldText, newText)
 				return true
 			}
+		} else {
+			e.isSurroundingTextReady = true
 		}
 		return false
 	}
