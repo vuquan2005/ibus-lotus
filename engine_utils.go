@@ -39,7 +39,6 @@ import (
 )
 
 var dictionary = map[string]bool{}
-var emojiTrie = NewTrie()
 
 func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 	go keyPressCapturing()
@@ -78,7 +77,6 @@ func (e *IBusLotusEngine) isShortcutKeyEnable(ski uint) bool {
 
 func (e *IBusLotusEngine) init() {
 	initConfigFiles(e.engineName)
-	e.emoji = NewEmojiEngine()
 	if e.macroTable == nil {
 		e.macroTable = NewMacroTable(e.config.IBflags&config.IBautoCapitalizeMacro != 0)
 		if e.config.IBflags&config.IBmacroEnabled != 0 {
@@ -168,18 +166,6 @@ func (e *IBusLotusEngine) isShortcutKeyPressed(keyVal, state uint32, shortcut ui
 func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (bool, bool) {
 	if keyVal == IBusCapsLock {
 		return true, false
-	}
-	// fmt.Println("===Process shortcut for emoji selector")
-	if e.isShortcutKeyPressed(keyVal, state, KSEmojiDialog) &&
-		!e.isEmojiLTOpened {
-		e.resetBuffer()
-		e.isEmojiLTOpened = true
-		e.lastKeyWithShift = true
-		e.openEmojiList()
-		return true, true
-	}
-	if e.isEmojiLTOpened {
-		return true, e.emojiProcessKeyEvent(keyVal, keyCode, state)
 	}
 	// fmt.Println("====== Process hexadecimal key pressed")
 	if e.isShortcutKeyPressed(keyVal, state, KSHexadecimal) {

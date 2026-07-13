@@ -38,7 +38,6 @@ const (
 	PropKeyVnCharsetConvert             = "charset_convert_page"
 	PropKeyMacroEnabled                 = "macro_enabled"
 	PropKeyMacroTable                   = "open_macro_table"
-	PropKeyEmojiEnabled                 = "emoji_enabled"
 	PropKeyConfiguration                = "configuration"
 	PropKeyPreeditElimination           = "preedit_elimination"
 	PropKeyInputModeLookupTable         = "input_mode_lookup_table"

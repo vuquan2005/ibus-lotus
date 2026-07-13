@@ -41,7 +41,6 @@ const (
 
 	DataDir          = "/usr/share/ibus-lotus"
 	DictVietnameseCm = "data/vietnamese.cm.dict"
-	DictEmojiOne     = "data/emojione.json"
 )
 
 const (
@@ -56,7 +55,7 @@ const (
 	KSInputModeSwitch uint = iota * 2
 	KSRestoreKeyStrokes
 	KSViEnSwitch
-	KSEmojiDialog
+	_KSEmojiDialog //deprecated
 	KSHexadecimal
 )
 
