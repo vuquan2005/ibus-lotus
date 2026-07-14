@@ -61,41 +61,13 @@ var IBusSeparator = &ibus.Property{
 }
 
 func GetPropListByConfig(c *config.Config, englishMode bool) *ibus.PropList {
-	var preeditChecked = ibus.PROP_STATE_UNCHECKED
-	if !englishMode && c.DefaultInputMode == config.PreeditIM {
-		preeditChecked = ibus.PROP_STATE_CHECKED
-	}
 	var aboutText = "IBus " + EngineName + " " + Version
 	if !Embedded {
 		aboutText += " (Debug)"
 	}
-	if c.DefaultInputMode == config.UsIM {
-		return ibus.NewPropList(
-			&ibus.Property{
-				Name:      "IBusProperty",
-				Key:       PropKeyAbout,
-				Type:      ibus.PROP_TYPE_NORMAL,
-				Label:     dbus.MakeVariant(ibus.NewText(aboutText)),
-				Tooltip:   dbus.MakeVariant(ibus.NewText("Mở trang chủ")),
-				Sensitive: true,
-				Visible:   true,
-				Icon:      "gtk-home",
-				Symbol:    dbus.MakeVariant(ibus.NewText("")),
-				SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
-			},
-			&ibus.Property{
-				Name:      "IBusProperty",
-				Key:       PropKeyInputModeLookupTableShortcut,
-				Type:      ibus.PROP_TYPE_NORMAL,
-				Label:     dbus.MakeVariant(ibus.NewText("Keyboard Shortcuts")),
-				Tooltip:   dbus.MakeVariant(ibus.NewText("Keyboard Shortcuts")),
-				Sensitive: true,
-				Visible:   true,
-				Icon:      "appointment",
-				Symbol:    dbus.MakeVariant(ibus.NewText("")),
-				SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
-			},
-		)
+	var macroChecked = ibus.PROP_STATE_UNCHECKED
+	if c.IBflags&config.IBmacroEnabled != 0 {
+		macroChecked = ibus.PROP_STATE_CHECKED
 	}
 	return ibus.NewPropList(
 		&ibus.Property{
@@ -113,85 +85,25 @@ func GetPropListByConfig(c *config.Config, englishMode bool) *ibus.PropList {
 		IBusSeparator,
 		&ibus.Property{
 			Name:      "IBusProperty",
-			Key:       "-",
-			Type:      ibus.PROP_TYPE_MENU,
-			Label:     dbus.MakeVariant(ibus.NewText("Bảng mã")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Bảng mã")),
-			Sensitive: true,
-			Visible:   true,
-			Icon:      "fonts",
-			Symbol:    dbus.MakeVariant(ibus.NewText("")),
-			SubProps:  dbus.MakeVariant(GetCharsetPropListByConfig(c)),
-		},
-		&ibus.Property{
-			Name:      "IBusProperty",
-			Key:       "-",
-			Type:      ibus.PROP_TYPE_MENU,
-			Label:     dbus.MakeVariant(ibus.NewText("Kiểu gõ")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Kiểu gõ")),
-			Sensitive: true,
-			Visible:   true,
-			Icon:      "preferences-desktop",
-			Symbol:    dbus.MakeVariant(ibus.NewText("")),
-			SubProps:  dbus.MakeVariant(GetIMPropListByConfig(c)),
-		},
-		&ibus.Property{
-			Name:      "IBusProperty",
-			Key:       "-",
-			Type:      ibus.PROP_TYPE_MENU,
-			Label:     dbus.MakeVariant(ibus.NewText("Gõ tắt")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Gõ tắt")),
-			Sensitive: true,
-			Visible:   true,
-			Icon:      "document-send",
-			Symbol:    dbus.MakeVariant(ibus.NewText("")),
-			SubProps:  dbus.MakeVariant(GetMacroPropListByConfig(c)),
-		},
-		&ibus.Property{
-			Name:      "IBusProperty",
-			Key:       "-",
-			Type:      ibus.PROP_TYPE_MENU,
-			Label:     dbus.MakeVariant(ibus.NewText("Kiểm tra chính tả")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Kiểm tra chính tả")),
-			Sensitive: true,
-			Visible:   true,
-			Icon:      "tools-check-spelling",
-			Symbol:    dbus.MakeVariant(ibus.NewText("")),
-			SubProps:  dbus.MakeVariant(GetSpellCheckingPropListByConfig(c)),
-		},
-		&ibus.Property{
-			Name:      "IBusProperty",
-			Key:       PropKeyEnablePreedit,
+			Key:       PropKeyMacroEnabled,
 			Type:      ibus.PROP_TYPE_TOGGLE,
-			Label:     dbus.MakeVariant(ibus.NewText("Bật Pre-edit (có gạch chân)")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Bật chế độ Pre-edit (có gạch chân)")),
+			Label:     dbus.MakeVariant(ibus.NewText("Bật gõ tắt")),
+			Tooltip:   dbus.MakeVariant(ibus.NewText("Bật gõ tắt")),
 			Sensitive: true,
 			Visible:   true,
-			State:     preeditChecked,
-			Symbol:    dbus.MakeVariant(ibus.NewText("P")),
+			State:     macroChecked,
+			Symbol:    dbus.MakeVariant(ibus.NewText("M")),
 			SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
-		},
-		&ibus.Property{
-			Name:      "IBusProperty",
-			Key:       "-",
-			Type:      ibus.PROP_TYPE_MENU,
-			Label:     dbus.MakeVariant(ibus.NewText("Cấu hình khác")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Cấu hình khác")),
-			Sensitive: true,
-			Visible:   true,
-			Icon:      "preferences-other",
-			Symbol:    dbus.MakeVariant(ibus.NewText("")),
-			SubProps:  dbus.MakeVariant(GetOptionsPropListByConfig(c)),
 		},
 		&ibus.Property{
 			Name:      "IBusProperty",
 			Key:       PropKeyInputModeLookupTableShortcut,
 			Type:      ibus.PROP_TYPE_NORMAL,
-			Label:     dbus.MakeVariant(ibus.NewText("Phím tắt")),
-			Tooltip:   dbus.MakeVariant(ibus.NewText("Keyboard Shortcuts")),
+			Label:     dbus.MakeVariant(ibus.NewText("Cài đặt")),
+			Tooltip:   dbus.MakeVariant(ibus.NewText("Mở cài đặt bộ gõ")),
 			Sensitive: true,
 			Visible:   true,
-			Icon:      "appointment",
+			Icon:      "preferences-desktop",
 			Symbol:    dbus.MakeVariant(ibus.NewText("")),
 			SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
 		},

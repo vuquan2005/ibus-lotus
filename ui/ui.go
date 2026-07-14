@@ -4,7 +4,19 @@ package ui
 #cgo pkg-config: gtk+-3.0
 #include <gtk/gtk.h>
 
-extern int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfgtext);
+extern int openGUI(
+	guint flags,
+	guint ibFlags,
+	int mode,
+	guint32 *s,
+	int size,
+	char *mtext,
+	char *cfgtext,
+	char *curIM,
+	char *curCS,
+	char *allIMs,
+	char *allCSs
+);
 */
 import "C"
 import (
@@ -12,7 +24,10 @@ import (
 	"ibus-lotus/config"
 	"io/ioutil"
 	"os"
+	"strings"
 	"unsafe"
+
+	"github.com/BambooEngine/bamboo-core"
 )
 
 var engineName string
@@ -24,6 +39,18 @@ func saveFlags(flags C.guint) {
 	)
 	config.SaveConfig(cfg, engineName)
 	cfg.IBflags = uint(flags)
+	config.SaveConfig(cfg, engineName)
+}
+
+//export saveConfigOptions
+func saveConfigOptions(flags C.uint, ibFlags C.uint, inputMethod *C.char, outputCharset *C.char) {
+	var (
+		cfg = config.LoadConfig(engineName)
+	)
+	cfg.Flags = uint(flags)
+	cfg.IBflags = uint(ibFlags)
+	cfg.InputMethod = C.GoString(inputMethod)
+	cfg.OutputCharset = C.GoString(outputCharset)
 	config.SaveConfig(cfg, engineName)
 }
 
@@ -96,6 +123,26 @@ func OpenGUI(engName string) {
 	if err != nil {
 		panic(err)
 	}
+
+	var ims []string
+	for name := range cfg.InputMethodDefinitions {
+		ims = append(ims, name)
+	}
+	allInputMethods := strings.Join(ims, ",")
+	allOutputCharsets := strings.Join(bamboo.GetCharsetNames(), ",")
+
 	os.Setenv("GTK_IM_MODULE", "gtk-im-context-simple")
-	C.openGUI(C.guint(cfg.IBflags), C.int(cfg.DefaultInputMode), s, C.int(size), C.CString(string(mText)), C.CString(string(data)))
+	C.openGUI(
+		C.guint(cfg.Flags),
+		C.guint(cfg.IBflags),
+		C.int(cfg.DefaultInputMode),
+		s,
+		C.int(size),
+		C.CString(string(mText)),
+		C.CString(string(data)),
+		C.CString(cfg.InputMethod),
+		C.CString(cfg.OutputCharset),
+		C.CString(allInputMethods),
+		C.CString(allOutputCharsets),
+	)
 }
