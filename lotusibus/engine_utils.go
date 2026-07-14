@@ -55,6 +55,7 @@ func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 		engine.propList = GetPropListByConfig(cfg, engine.englishMode)
 		engine.shouldEnqueuKeyStrokes = true
 		ibus.PublishEngine(conn, objectPath, engine)
+		initConfigFiles(engine.engineName)
 		if ShowGUI {
 			ui.OpenGUI(engine.engineName)
 			os.Exit(0)

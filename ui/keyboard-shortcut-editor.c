@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <gtk/gtk.h>
+#include <gio/gio.h>
 #include "_cgo_export.h"
 
 #define TOTAL_ROWS 2
@@ -33,6 +34,10 @@ GtkWidget *chk_spell_check;
 GtkWidget *chk_spell_rules;
 GtkWidget *chk_spell_dicts;
 GtkWidget *chk_no_underline;
+
+// Global buffers to unify saving
+GtkTextBuffer *macro_buffer = NULL;
+GtkTextBuffer *cfg_buffer = NULL;
 
 /*
  * get_shortcut_pair_idx
@@ -121,22 +126,22 @@ void btn_save_cb(GtkWidget *widget, gpointer data) {
   if (im != NULL && g_strcmp0(im, "") != 0) g_free(im);
   if (cs != NULL && g_strcmp0(cs, "") != 0) g_free(cs);
 
-  close_window_cb(widget, data);
-}
-
-void btn_macro_save_cb(GtkWidget *widget, gpointer data) {
-  GtkTextBuffer *buffer = g_object_get_data(G_OBJECT(widget), "buffer");
-  int nSaveMacroText = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "saveMacroText"));
-  gchar *text;
-  GtkTextIter start, end;
-  gtk_text_buffer_get_bounds (buffer, &start, &end);
-
-  text = gtk_text_buffer_get_text (buffer, &start, &end, FALSE);
-  if (nSaveMacroText) {
+  // Save macro and config text if they were loaded in UI
+  if (macro_buffer != NULL) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(macro_buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(macro_buffer, &start, &end, FALSE);
     saveMacroText(text);
-  } else {
-    saveConfigText(text);
+    g_free(text);
   }
+  if (cfg_buffer != NULL) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(cfg_buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(cfg_buffer, &start, &end, FALSE);
+    saveConfigText(text);
+    g_free(text);
+  }
+
   close_window_cb(widget, data);
 }
 
@@ -192,8 +197,7 @@ static gboolean key_press_cb(GtkWidget *entry, GdkEventKey *event, gpointer data
 }
 
 void add_checkbox(GtkWidget *parent, char *text, int mask_pos) {
-  // GtkWidget *check;
-  int pad = 10;
+  int pad = 6;
   /*
    * --- Create a check button
    */
@@ -210,7 +214,7 @@ void add_checkbox(GtkWidget *parent, char *text, int mask_pos) {
   }
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(maskWidgets[mask_pos]), active);
 
-  /* --- Pack the checkbox into the parent (expand? fill? padding?).  --- */
+  /* --- Pack the checkbox into the parent. --- */
   gtk_box_pack_start(GTK_BOX(parent), maskWidgets[mask_pos], FALSE, FALSE, pad);
 
   g_signal_connect(maskWidgets[mask_pos], "toggled", G_CALLBACK(check_event_cb),
@@ -218,10 +222,7 @@ void add_checkbox(GtkWidget *parent, char *text, int mask_pos) {
 }
 
 void add_macro_text(GtkWidget *widget, GtkWidget *w, char *macro_text, int saveMacroText) {
-  GtkWidget *save_button, *macro_tv;
-  GtkWidget *hbox;
-  /* Horizontal box to pack save button */
-  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  GtkWidget *macro_tv;
   GtkWidget *scrolled_window = gtk_scrolled_window_new (NULL, NULL);
   GtkTextBuffer *buffer;
   macro_tv = gtk_text_view_new ();
@@ -231,23 +232,19 @@ void add_macro_text(GtkWidget *widget, GtkWidget *w, char *macro_text, int saveM
   gtk_container_add(GTK_CONTAINER(scrolled_window), macro_tv);
   gtk_scrolled_window_set_propagate_natural_width(GTK_SCROLLED_WINDOW(scrolled_window), 1);
   gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(scrolled_window), 1);
-  gtk_text_view_set_bottom_margin(GTK_TEXT_VIEW(macro_tv), 30);
+  gtk_text_view_set_bottom_margin(GTK_TEXT_VIEW(macro_tv), 10);
 
-  gtk_widget_set_valign(hbox, GTK_ALIGN_END);
-  gtk_widget_set_vexpand(hbox, TRUE);
-  gtk_widget_set_halign(hbox, GTK_ALIGN_END);
-  /* --- Pack it in. --- */
-  gtk_box_pack_start(GTK_BOX(widget), scrolled_window, FALSE, FALSE, 0);
-  /* --- Create a Save button. --- */
-  save_button = gtk_button_new_with_label("Save");
-  g_object_set_data(G_OBJECT(save_button), "buffer", buffer);
-  g_object_set_data(G_OBJECT(save_button), "saveMacroText", GINT_TO_POINTER(saveMacroText));
-  g_signal_connect(save_button, "clicked", G_CALLBACK(btn_macro_save_cb), w);
-  /* --- Pack the button into the vertical box (vbox box1).  --- */
-  gtk_box_pack_start(GTK_BOX(hbox), save_button, FALSE, FALSE, 10);
-  gtk_widget_set_margin_bottom(hbox, 10);
+  // Setup layout flags to fill the container space
+  gtk_widget_set_vexpand(scrolled_window, TRUE);
+  gtk_widget_set_hexpand(scrolled_window, TRUE);
+  gtk_box_pack_start(GTK_BOX(widget), scrolled_window, TRUE, TRUE, 0);
 
-  gtk_box_pack_start(GTK_BOX(widget), hbox, TRUE, TRUE, 0);
+  // Track the text buffers for global saving
+  if (saveMacroText) {
+    macro_buffer = buffer;
+  } else {
+    cfg_buffer = buffer;
+  }
 }
 
 static void
@@ -263,19 +260,20 @@ show_input_mode_alert (char  *msg)
 }
 
 void add_shortcut_box(GtkWidget *widget, char *text, int row) {
-  GtkWidget *hbox, *label_hbox;
+  GtkWidget *hbox;
   GtkWidget *label;
-  int pad = 10;
-  /* Horizontal box to pack shortcut and label */
+  
+  // Wrap shortcut rows in nice modern card styled boxes
+  GtkWidget *card = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card), "card");
+
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
-  /* Horizontal box to pack label */
-  label_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   /* --- create a new label.  --- */
   label = gtk_label_new(text);
   gtk_label_set_xalign(GTK_LABEL(label), 0);
-  /* --- Pack the label into the horizontal box (expand? fill? padding)  --- */
-  gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, pad);
+  gtk_style_context_add_class(gtk_widget_get_style_context(label), "card-title");
+  gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 5);
 
   for (int i = 0; i < TOTAL_MASKS_PER_ROW; i++) {
     add_checkbox(hbox, labels[i], row * TOTAL_MASKS_PER_ROW + i);
@@ -284,8 +282,10 @@ void add_shortcut_box(GtkWidget *widget, char *text, int row) {
   /* --- Create an entry field --- */
   keyWidgets[row] = gtk_entry_new();
   GtkWidget *entry = keyWidgets[row];
+  gtk_style_context_add_class(gtk_widget_get_style_context(entry), "keycap");
+  gtk_widget_set_size_request(entry, 80, -1);
 
-  /* --- Pack the entry into the vertical box (expand? fill?, padding?).  --- */
+  /* --- Pack the entry into the horizontal box.  --- */
   gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 10);
 
   /* --- Put some text in the field. --- */
@@ -294,49 +294,13 @@ void add_shortcut_box(GtkWidget *widget, char *text, int row) {
   gtk_entry_set_text(GTK_ENTRY(entry), int_to_accel(kvl));
   gtk_entry_set_alignment(GTK_ENTRY(entry), 0.5);
 
-  /* --- Pack it in. --- */
-  gtk_box_pack_start(GTK_BOX(widget), hbox, FALSE, FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(card), hbox);
+  gtk_box_pack_start(GTK_BOX(widget), card, FALSE, FALSE, 0);
 
   g_signal_connect(entry, "key_press_event", G_CALLBACK(key_press_cb),
                    GINT_TO_POINTER(row));
   g_signal_connect(entry, "key_release_event", G_CALLBACK(key_release_cb),
                    GINT_TO_POINTER(row));
-}
-
-void add_control_buttons(GtkWidget *widget, GtkWidget *dialog) {
-  GtkWidget *save_button;
-  GtkWidget *cancel_button;
-  GtkWidget *reset_button;
-  GtkWidget *hbox;
-
-  /* Horizontal box to pack OK and Cancel buttons */
-  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  gtk_widget_set_halign(hbox, GTK_ALIGN_END);
-
-  /* --- Create a Reset button. --- */
-  reset_button = gtk_button_new_with_label("Reset");
-
-  /* --- Pack the reset_button into the vertical box (vbox box1).  --- */
-  gtk_box_pack_start(GTK_BOX(hbox), reset_button, FALSE, FALSE, 10);
-
-  /* --- Create a Cancel button. --- */
-  cancel_button = gtk_button_new_with_label("Cancel");
-
-  /* --- Pack the cancel_button into the vertical box (vbox box1).  --- */
-  gtk_box_pack_start(GTK_BOX(hbox), cancel_button, FALSE, FALSE, 10);
-
-  /* --- Create a Save button. --- */
-  save_button = gtk_button_new_with_label("Save");
-
-  /* --- Pack the button into the vertical box (vbox box1).  --- */
-  gtk_box_pack_start(GTK_BOX(hbox), save_button, FALSE, FALSE, 10);
-
-  gtk_container_add(GTK_CONTAINER(widget), hbox);
-
-  g_signal_connect(reset_button, "clicked", G_CALLBACK(btn_reset_cb), "clicked");
-  g_signal_connect(save_button, "clicked", G_CALLBACK(btn_save_cb), dialog);
-  g_signal_connect(cancel_button, "clicked", G_CALLBACK(close_window_cb),
-                   dialog);
 }
 
 static void set_margin ( GtkWidget *vbox, gint hmargin, gint vmargin )
@@ -347,7 +311,6 @@ static void set_margin ( GtkWidget *vbox, gint hmargin, gint vmargin )
   gtk_widget_set_margin_bottom(vbox, vmargin);
 }
 
-
 static gboolean
 tooltip_press_callback (GtkWidget      *event_box,
                        GdkEventButton *event,
@@ -356,12 +319,68 @@ tooltip_press_callback (GtkWidget      *event_box,
     g_print ("Event box clicked at coordinates %f,%f\n",
          event->x, event->y);
     show_input_mode_alert((char*)data);
-    // Returning TRUE means we handled the event, so the signal
-    // emission should be stopped (don’t call any further callbacks
-    // that may be connected). Return FALSE to continue invoking callbacks.
     return TRUE;
 }
 
+static void on_spell_check_toggled(GtkToggleButton *button, gpointer data) {
+  gboolean active = gtk_toggle_button_get_active(button);
+  gtk_widget_set_sensitive(chk_spell_rules, active);
+  gtk_widget_set_sensitive(chk_spell_dicts, active);
+}
+
+static void on_macro_enabled_toggled(GtkToggleButton *button, gpointer data) {
+  gboolean active = gtk_toggle_button_get_active(button);
+  gtk_widget_set_sensitive(chk_auto_capitalize, active);
+}
+
+static void apply_css(void) {
+  GtkCssProvider *provider = gtk_css_provider_new();
+  // We use alpha() channel for background and border overlays.
+  // This is mathematically guaranteed to work on both Light and Dark themes
+  // since it blends transparency over whatever background the theme provides,
+  // preventing text-readability/color-inversion issues.
+  gtk_css_provider_load_from_data(provider,
+    "notebook {\n"
+    "  border-top: 1px solid alpha(@theme_fg_color, 0.12);\n"
+    "}\n"
+    "notebook tab {\n"
+    "  padding: 8px 16px;\n"
+    "  font-weight: bold;\n"
+    "}\n"
+    "notebook tab:checked {\n"
+    "  color: @theme_selected_bg_color;\n"
+    "}\n"
+    ".card {\n"
+    "  background-color: alpha(@theme_fg_color, 0.03);\n"
+    "  border: 1px solid alpha(@theme_fg_color, 0.08);\n"
+    "  border-radius: 8px;\n"
+    "  padding: 14px;\n"
+    "  margin-bottom: 12px;\n"
+    "}\n"
+    ".card-title {\n"
+    "  font-weight: bold;\n"
+    "  font-size: 11pt;\n"
+    "  margin-bottom: 8px;\n"
+    "}\n"
+    "entry.keycap {\n"
+    "  font-family: 'Monospace', monospace;\n"
+    "  font-weight: bold;\n"
+    "  font-size: 11pt;\n"
+    "  background-color: alpha(@theme_fg_color, 0.05);\n"
+    "  border: 1px solid alpha(@theme_fg_color, 0.15);\n"
+    "  border-radius: 6px;\n"
+    "  padding: 6px;\n"
+    "}\n"
+    "textview text {\n"
+    "  font-family: 'Monospace', monospace;\n"
+    "  font-size: 11pt;\n"
+    "  padding: 10px;\n"
+    "}\n",
+    -1, NULL);
+  gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+    GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  g_object_unref(provider);
+}
 
 /*
  * Main - program begins here
@@ -380,77 +399,138 @@ int openGUI(
     char *allCSs
 ) {
   GtkWidget *w;
-  GtkWidget *vbox, *vcbox;
-  int which;
+  GtkWidget *vbox;
   int pad = 10;
-  int arr[10] = {0};
 
   key_pairs_tmp = s;
   current_flags = flags;
   current_ib_flags = ibFlags;
 
+  macro_buffer = NULL;
+  cfg_buffer = NULL;
+
   gtk_init(NULL, NULL);
+
+  // Dynamic system-wide GNOME dark-theme synchronization setup
+  gboolean prefer_dark = FALSE;
+  GSettingsSchemaSource *schema_source = g_settings_schema_source_get_default();
+  if (schema_source) {
+    GSettingsSchema *schema = g_settings_schema_source_lookup(schema_source, "org.gnome.desktop.interface", TRUE);
+    if (schema) {
+      GSettings *settings = g_settings_new("org.gnome.desktop.interface");
+      if (settings) {
+        gchar *color_scheme = g_settings_get_string(settings, "color-scheme");
+        if (color_scheme && g_strcmp0(color_scheme, "prefer-dark") == 0) {
+          prefer_dark = TRUE;
+        }
+        if (color_scheme) g_free(color_scheme);
+        g_object_unref(settings);
+      }
+      g_settings_schema_unref(schema);
+    }
+  }
+
+  // Also check if current GTK legacy theme name contains "dark"
+  GtkSettings *gtk_settings = gtk_settings_get_default();
+  gchar *theme_name = NULL;
+  g_object_get(gtk_settings, "gtk-theme-name", &theme_name, NULL);
+  if (theme_name) {
+    gchar *lower_theme = g_utf8_strdown(theme_name, -1);
+    if (g_strrstr(lower_theme, "dark") != NULL) {
+      prefer_dark = TRUE;
+    }
+    g_free(lower_theme);
+    g_free(theme_name);
+  }
+
+  if (prefer_dark) {
+    g_object_set(gtk_settings, "gtk-application-prefer-dark-theme", TRUE, NULL);
+  }
+
+  // Load custom style settings to match desktop theme
+  apply_css();
+
   /* --- Create the top level window --- */
   w = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_widget_set_size_request(w, 600, 360);
+  gtk_widget_set_size_request(w, 640, 485);
+  gtk_container_set_border_width(GTK_CONTAINER(w), 0);
 
-  /* --- You should always remember to connect the delete_event
-   *     to the main window.
-   */
+  // Set up HeaderBar for modern title decoration
+  GtkWidget *header = gtk_header_bar_new();
+  gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header), TRUE);
+  gtk_header_bar_set_title(GTK_HEADER_BAR(header), "Cấu hình Lotus");
+  gtk_header_bar_set_subtitle(GTK_HEADER_BAR(header), "Bộ gõ Tiếng Việt Lotus");
+  gtk_window_set_titlebar(GTK_WINDOW(w), header);
+
+  // Cancel button
+  GtkWidget *btn_cancel = gtk_button_new_with_label("Hủy");
+  g_signal_connect(btn_cancel, "clicked", G_CALLBACK(close_window_cb), w);
+  gtk_header_bar_pack_start(GTK_HEADER_BAR(header), btn_cancel);
+
+  // Reset button
+  GtkWidget *btn_reset = gtk_button_new_with_label("Mặc định");
+  g_signal_connect(btn_reset, "clicked", G_CALLBACK(btn_reset_cb), NULL);
+  gtk_header_bar_pack_start(GTK_HEADER_BAR(header), btn_reset);
+
+  // Save button
+  GtkWidget *btn_save = gtk_button_new_with_label("Lưu");
+  GtkStyleContext *save_context = gtk_widget_get_style_context(btn_save);
+  gtk_style_context_add_class(save_context, "suggested-action");
+  g_signal_connect(btn_save, "clicked", G_CALLBACK(btn_save_cb), w);
+  gtk_header_bar_pack_end(GTK_HEADER_BAR(header), btn_save);
+
   g_signal_connect(w, "delete_event", G_CALLBACK(close_window_cb), w);
 
-  /* --- Give the window a border --- */
-  gtk_container_set_border_width(GTK_CONTAINER(w), 2);
+  GtkWidget *m_notebook = gtk_notebook_new();
+  gtk_container_add(GTK_CONTAINER(w), m_notebook);
 
-  /* --- We create a vertical box (vbox) to pack
-   *     the horizontal boxes into.
-   */
+  // --- Page 1: Phím tắt ---
+  GtkWidget *keyboardPage = gtk_label_new("Phím tắt");
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  set_margin(vbox, 16, 16);
 
   for (int i = 0; i < TOTAL_ROWS; i++) {
     add_shortcut_box(vbox, text_arr[i], i);
   }
-
-  vcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
-  add_control_buttons(vcbox, w);
-
-  /* --- Align the controls box to the bottom.   --- */
-  gtk_widget_set_valign(vcbox, GTK_ALIGN_END);
-  gtk_widget_set_vexpand(vcbox, TRUE);
-  gtk_box_pack_start(GTK_BOX(vbox), vcbox, TRUE, TRUE, 0);
-
-  set_margin(vbox, 5, pad);
-
-
-  GtkWidget *m_notebook;
-  m_notebook = gtk_notebook_new();
-
-  gtk_container_add(GTK_CONTAINER (w), m_notebook);
-
-  GtkWidget *button;
-
-  GtkWidget* keyboardPage = gtk_label_new("Phím tắt");
   gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, keyboardPage);
 
-  // --- Start Settings Page ---
-  GtkWidget* settingsPage = gtk_label_new("Cài đặt");
-  GtkWidget* settings_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
-  set_margin(settings_vbox, 15, pad);
+  // --- Page 2: Cài đặt ---
+  GtkWidget *settingsPage = gtk_label_new("Cài đặt");
+  GtkWidget *settings_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  set_margin(settings_vbox, 16, 16);
 
-  // Row 1: Kiểu gõ và Bảng mã
-  GtkWidget *row1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+  // Card 1: Kiểu gõ & Bảng mã
+  GtkWidget *card_im_cs = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card_im_cs), "card");
+
+  GtkWidget *lbl_im_cs = gtk_label_new("Kiểu gõ & Bảng mã");
+  gtk_widget_set_halign(lbl_im_cs, GTK_ALIGN_START);
+  gtk_style_context_add_class(gtk_widget_get_style_context(lbl_im_cs), "card-title");
+  gtk_box_pack_start(GTK_BOX(card_im_cs), lbl_im_cs, FALSE, FALSE, 0);
+
+  GtkWidget *grid_im_cs = gtk_grid_new();
+  gtk_grid_set_row_spacing(GTK_GRID(grid_im_cs), 8);
+  gtk_grid_set_column_spacing(GTK_GRID(grid_im_cs), 12);
+
   GtkWidget *lbl_im = gtk_label_new("Kiểu gõ:");
+  gtk_widget_set_halign(lbl_im, GTK_ALIGN_START);
   combo_im = gtk_combo_box_text_new();
+  gtk_widget_set_hexpand(combo_im, TRUE);
+
   GtkWidget *lbl_cs = gtk_label_new("Bảng mã:");
+  gtk_widget_set_halign(lbl_cs, GTK_ALIGN_START);
   combo_cs = gtk_combo_box_text_new();
+  gtk_widget_set_hexpand(combo_cs, TRUE);
 
-  gtk_box_pack_start(GTK_BOX(row1), lbl_im, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(row1), combo_im, TRUE, TRUE, 5);
-  gtk_box_pack_start(GTK_BOX(row1), lbl_cs, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(row1), combo_cs, TRUE, TRUE, 5);
-  gtk_box_pack_start(GTK_BOX(settings_vbox), row1, FALSE, FALSE, 5);
+  gtk_grid_attach(GTK_GRID(grid_im_cs), lbl_im, 0, 0, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid_im_cs), combo_im, 1, 0, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid_im_cs), lbl_cs, 0, 1, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid_im_cs), combo_cs, 1, 1, 1, 1);
 
-  // Populate Kiểu gõ (combo_im)
+  gtk_box_pack_start(GTK_BOX(card_im_cs), grid_im_cs, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(settings_vbox), card_im_cs, FALSE, FALSE, 0);
+
+  // Populate Kiểu gõ
   gchar **im_items = g_strsplit(allIMs, ",", -1);
   for (int i = 0; im_items[i] != NULL; i++) {
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_im), im_items[i]);
@@ -460,7 +540,7 @@ int openGUI(
   }
   g_strfreev(im_items);
 
-  // Populate Bảng mã (combo_cs)
+  // Populate Bảng mã
   gchar **cs_items = g_strsplit(allCSs, ",", -1);
   for (int i = 0; cs_items[i] != NULL; i++) {
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_cs), cs_items[i]);
@@ -470,77 +550,95 @@ int openGUI(
   }
   g_strfreev(cs_items);
 
-  // Checkboxes
-  GtkWidget *grid = gtk_grid_new();
-  gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
-  gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+  // Card 2: Hành vi gõ & Chính tả
+  GtkWidget *card_behavior = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card_behavior), "card");
 
-  chk_std_tone = gtk_check_button_new_with_label("Dấu thanh chuẩn (òa, úy...)");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_std_tone), (flags & 2) != 0);
+  GtkWidget *lbl_behavior = gtk_label_new("Hành vi gõ & Chính tả");
+  gtk_widget_set_halign(lbl_behavior, GTK_ALIGN_START);
+  gtk_style_context_add_class(gtk_widget_get_style_context(lbl_behavior), "card-title");
+  gtk_box_pack_start(GTK_BOX(card_behavior), lbl_behavior, FALSE, FALSE, 0);
 
   chk_free_tone = gtk_check_button_new_with_label("Bỏ dấu tự do");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_free_tone), (flags & 1) != 0);
+  gtk_box_pack_start(GTK_BOX(card_behavior), chk_free_tone, FALSE, FALSE, 0);
 
-  chk_macro_enabled = gtk_check_button_new_with_label("Bật gõ tắt");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_macro_enabled), (ibFlags & 2) != 0);
-
-  chk_auto_capitalize = gtk_check_button_new_with_label("Tự động viết hoa từ gõ tắt");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_auto_capitalize), (ibFlags & 32768) != 0);
+  chk_std_tone = gtk_check_button_new_with_label("Dấu thanh chuẩn (òa, úy...)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_std_tone), (flags & 2) != 0);
+  gtk_box_pack_start(GTK_BOX(card_behavior), chk_std_tone, FALSE, FALSE, 0);
 
   chk_spell_check = gtk_check_button_new_with_label("Kiểm tra chính tả");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_spell_check), (ibFlags & 16) != 0);
+  gtk_box_pack_start(GTK_BOX(card_behavior), chk_spell_check, FALSE, FALSE, 0);
 
-  chk_spell_rules = gtk_check_button_new_with_label("Kiểm tra chính tả bằng luật vần");
+  // Spell check sub-options
+  GtkWidget *vbox_spell_sub = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+  gtk_widget_set_margin_start(vbox_spell_sub, 24);
+
+  chk_spell_rules = gtk_check_button_new_with_label("Kiểm tra bằng luật vần");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_spell_rules), (ibFlags & 256) != 0);
+  gtk_box_pack_start(GTK_BOX(vbox_spell_sub), chk_spell_rules, FALSE, FALSE, 0);
 
-  chk_spell_dicts = gtk_check_button_new_with_label("Kiểm tra chính tả bằng từ điển");
+  chk_spell_dicts = gtk_check_button_new_with_label("Kiểm tra bằng từ điển");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_spell_dicts), (ibFlags & 512) != 0);
+  gtk_box_pack_start(GTK_BOX(vbox_spell_sub), chk_spell_dicts, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(card_behavior), vbox_spell_sub, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(settings_vbox), card_behavior, FALSE, FALSE, 0);
+
+  g_signal_connect(chk_spell_check, "toggled", G_CALLBACK(on_spell_check_toggled), NULL);
+  on_spell_check_toggled(GTK_TOGGLE_BUTTON(chk_spell_check), NULL);
+
+  // Card 3: Gõ tắt & Hiển thị
+  GtkWidget *card_macro = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card_macro), "card");
+
+  GtkWidget *lbl_macro = gtk_label_new("Gõ tắt & Hiển thị");
+  gtk_widget_set_halign(lbl_macro, GTK_ALIGN_START);
+  gtk_style_context_add_class(gtk_widget_get_style_context(lbl_macro), "card-title");
+  gtk_box_pack_start(GTK_BOX(card_macro), lbl_macro, FALSE, FALSE, 0);
+
+  chk_macro_enabled = gtk_check_button_new_with_label("Bật gõ tắt");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_macro_enabled), (ibFlags & 2) != 0);
+  gtk_box_pack_start(GTK_BOX(card_macro), chk_macro_enabled, FALSE, FALSE, 0);
+
+  GtkWidget *vbox_macro_sub = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+  gtk_widget_set_margin_start(vbox_macro_sub, 24);
+
+  chk_auto_capitalize = gtk_check_button_new_with_label("Tự động viết hoa từ gõ tắt");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_auto_capitalize), (ibFlags & 32768) != 0);
+  gtk_box_pack_start(GTK_BOX(vbox_macro_sub), chk_auto_capitalize, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(card_macro), vbox_macro_sub, FALSE, FALSE, 0);
 
   chk_no_underline = gtk_check_button_new_with_label("Ẩn gạch chân khi gõ nháp (pre-edit)");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_no_underline), (ibFlags & 128) != 0);
+  gtk_box_pack_start(GTK_BOX(card_macro), chk_no_underline, FALSE, FALSE, 6);
 
-  gtk_grid_attach(GTK_GRID(grid), chk_std_tone, 0, 0, 1, 1);
-  gtk_grid_attach(GTK_GRID(grid), chk_free_tone, 1, 0, 1, 1);
+  gtk_box_pack_start(GTK_BOX(settings_vbox), card_macro, FALSE, FALSE, 0);
 
-  gtk_grid_attach(GTK_GRID(grid), chk_spell_check, 0, 1, 1, 1);
-  gtk_grid_attach(GTK_GRID(grid), chk_spell_rules, 1, 1, 1, 1);
-
-  gtk_grid_attach(GTK_GRID(grid), chk_spell_dicts, 0, 2, 1, 1);
-  gtk_grid_attach(GTK_GRID(grid), chk_no_underline, 1, 2, 1, 1);
-
-  gtk_grid_attach(GTK_GRID(grid), chk_macro_enabled, 0, 3, 1, 1);
-  gtk_grid_attach(GTK_GRID(grid), chk_auto_capitalize, 1, 3, 1, 1);
-
-  gtk_box_pack_start(GTK_BOX(settings_vbox), grid, FALSE, FALSE, 10);
-
-  // Control buttons for Settings page
-  GtkWidget *settings_vcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
-  add_control_buttons(settings_vcbox, w);
-  gtk_widget_set_valign(settings_vcbox, GTK_ALIGN_END);
-  gtk_widget_set_vexpand(settings_vcbox, TRUE);
-  gtk_box_pack_start(GTK_BOX(settings_vbox), settings_vcbox, TRUE, TRUE, 0);
+  g_signal_connect(chk_macro_enabled, "toggled", G_CALLBACK(on_macro_enabled_toggled), NULL);
+  on_macro_enabled_toggled(GTK_TOGGLE_BUTTON(chk_macro_enabled), NULL);
 
   gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), settings_vbox, settingsPage);
-  // --- End Settings Page ---
 
+  // --- Page 3: Gõ tắt ---
   GtkWidget* macroPage = gtk_label_new("Gõ tắt");
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  set_margin(vbox, 8, 8);
   add_macro_text(vbox, w, mtext, 1);
   gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, macroPage);
 
+  // --- Page 4: Tự định nghĩa kiểu gõ ---
   GtkWidget* cfgPage = gtk_label_new("Tự định nghĩa kiểu gõ");
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  set_margin(vbox, 8, 8);
   add_macro_text(vbox, w, cfg_text, 0);
   gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, cfgPage);
 
-
-  /*
-   * --- Make the main window visible
-   */
-  gtk_window_set_title(GTK_WINDOW(w), "Settings");
-
+  /* --- Make the main window visible --- */
   gtk_widget_show_all(GTK_WIDGET(w));
-
   gtk_main();
-}
 
+  return 0;
+}
