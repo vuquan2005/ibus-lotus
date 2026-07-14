@@ -24,7 +24,6 @@ import (
 	"log"
 	"os/exec"
 	"reflect"
-	"strconv"
 	"sync"
 
 	"github.com/BambooEngine/bamboo-core"
@@ -247,76 +246,11 @@ func (e *IBusLotusEngine) PropertyActivate(propName string, propState uint32) *d
 		exec.Command("xdg-open", HomePage).Start()
 		return nil
 	}
-	if propName == PropKeyVnCharsetConvert {
-		exec.Command("xdg-open", CharsetConvertPage).Start()
-		return nil
-	}
-	if propName == PropKeyConfiguration {
+	if propName == PropKeyConfiguration || propName == PropKeyInputModeLookupTableShortcut || propName == PropKeyMacroTable {
 		ui.OpenGUI(e.engineName)
 		e.config = config.LoadConfig(e.engineName)
+		e.applyConfig()
 		return nil
-	}
-	if propName == PropKeyInputModeLookupTableShortcut {
-		ui.OpenGUI(e.engineName)
-		e.config = config.LoadConfig(e.engineName)
-		return nil
-	}
-	if propName == PropKeyMacroTable {
-		ui.OpenGUI(e.engineName)
-		e.config = config.LoadConfig(e.engineName)
-		return nil
-	}
-
-	turnSpellChecking := func(on bool) {
-		if on {
-			e.config.IBflags |= config.IBspellCheckEnabled
-			e.config.IBflags |= config.IBautoNonVnRestore
-			if e.config.IBflags&config.IBspellCheckWithDicts == 0 {
-				e.config.IBflags |= config.IBspellCheckWithRules
-			}
-		} else {
-			e.config.IBflags &= ^config.IBspellCheckEnabled
-			e.config.IBflags &= ^config.IBautoNonVnRestore
-		}
-	}
-
-	if propName == PropKeyStdToneStyle {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.Flags |= bamboo.EstdToneStyle
-		} else {
-			e.config.Flags &= ^bamboo.EstdToneStyle
-		}
-	}
-	if propName == PropKeyFreeToneMarking {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.Flags |= bamboo.EfreeToneMarking
-		} else {
-			e.config.Flags &= ^bamboo.EfreeToneMarking
-		}
-	}
-	if propName == PropKeyEnableSpellCheck {
-		if propState == ibus.PROP_STATE_CHECKED {
-			turnSpellChecking(true)
-		} else {
-			turnSpellChecking(false)
-		}
-	}
-	if propName == PropKeySpellCheckByRules {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.IBflags |= config.IBspellCheckWithRules
-			turnSpellChecking(true)
-		} else {
-			e.config.IBflags &= ^config.IBspellCheckWithRules
-		}
-	}
-	if propName == PropKeySpellCheckByDicts {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.IBflags |= config.IBspellCheckWithDicts
-			turnSpellChecking(true)
-			dictionary, _ = loadDictionary(DictVietnameseCm)
-		} else {
-			e.config.IBflags &= ^config.IBspellCheckWithDicts
-		}
 	}
 	if propName == PropKeyMacroEnabled {
 		if propState == ibus.PROP_STATE_CHECKED {
@@ -326,58 +260,28 @@ func (e *IBusLotusEngine) PropertyActivate(propName string, propState uint32) *d
 			e.config.IBflags &= ^config.IBmacroEnabled
 			e.macroTable.Disable()
 		}
-	}
-	if propName == PropKeyPreeditInvisibility {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.IBflags |= config.IBnoUnderline
-		} else {
-			e.config.IBflags &= ^config.IBnoUnderline
-		}
-	}
-	if propName == PropKeyPreeditElimination {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.IBflags |= config.IBpreeditElimination
-		} else {
-			e.config.IBflags &= ^config.IBpreeditElimination
-		}
-	}
-	if propName == PropKeyAutoCapitalizeMacro {
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.IBflags |= config.IBautoCapitalizeMacro
-		} else {
-			e.config.IBflags &= ^config.IBautoCapitalizeMacro
-		}
-		if e.config.IBflags&config.IBmacroEnabled != 0 {
-			e.macroTable.Reload(e.engineName, e.config.IBflags&config.IBautoCapitalizeMacro != 0)
-		}
-	}
-	if propName == PropKeyEnablePreedit {
-		e.englishMode = false
-		if propState == ibus.PROP_STATE_CHECKED {
-			e.config.DefaultInputMode = config.PreeditIM
-		} else {
-			e.config.DefaultInputMode = config.SurroundingTextIM
-		}
-	}
-
-	var im, foundIm = getValueFromPropKey(propName, "InputMode")
-	if foundIm && propState == ibus.PROP_STATE_CHECKED {
-		e.config.DefaultInputMode, _ = strconv.Atoi(im)
-	}
-	var charset, foundCs = getValueFromPropKey(propName, "OutputCharset")
-	if foundCs && isValidCharset(charset) && propState == ibus.PROP_STATE_CHECKED {
-		e.config.OutputCharset = charset
-	}
-	if _, found := e.config.InputMethodDefinitions[propName]; found && propState == ibus.PROP_STATE_CHECKED {
-		e.config.InputMethod = propName
-	}
-	if propName != "-" {
 		config.SaveConfig(e.config, e.engineName)
+		e.propList = GetPropListByConfig(e.config, e.englishMode)
+		e.RegisterProperties(e.propList)
+		return nil
+	}
+	return nil
+}
+
+func (e *IBusLotusEngine) applyConfig() {
+	if e.config.IBflags&config.IBspellCheckWithDicts != 0 && len(dictionary) == 0 {
+		dictionary, _ = loadDictionary(DictVietnameseCm)
+	}
+	if e.macroTable != nil {
+		if e.config.IBflags&config.IBmacroEnabled != 0 {
+			e.macroTable.Enable(e.engineName)
+			e.macroTable.Reload(e.engineName, e.config.IBflags&config.IBautoCapitalizeMacro != 0)
+		} else {
+			e.macroTable.Disable()
+		}
 	}
 	e.propList = GetPropListByConfig(e.config, e.englishMode)
-
 	var inputMethod = bamboo.ParseInputMethod(e.config.InputMethodDefinitions, e.config.InputMethod)
 	e.preeditor = bamboo.NewEngine(inputMethod, e.config.Flags)
 	e.RegisterProperties(e.propList)
-	return nil
 }

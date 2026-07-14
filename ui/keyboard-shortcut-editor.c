@@ -21,6 +21,19 @@ const int KEYVAL = 1;
 const int MASK = 0;
 guint32 *key_pairs_tmp;
 
+guint current_flags = 0;
+guint current_ib_flags = 0;
+GtkWidget *combo_im;
+GtkWidget *combo_cs;
+GtkWidget *chk_std_tone;
+GtkWidget *chk_free_tone;
+GtkWidget *chk_macro_enabled;
+GtkWidget *chk_auto_capitalize;
+GtkWidget *chk_spell_check;
+GtkWidget *chk_spell_rules;
+GtkWidget *chk_spell_dicts;
+GtkWidget *chk_no_underline;
+
 /*
  * get_shortcut_pair_idx
  *
@@ -80,6 +93,34 @@ gint btn_reset_cb(GtkWidget *widget, gpointer *data) {
  */
 void btn_save_cb(GtkWidget *widget, gpointer data) {
   saveShortcuts(key_pairs_tmp, 10);
+
+  gchar *im = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_im));
+  gchar *cs = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_cs));
+  if (im == NULL) im = "";
+  if (cs == NULL) cs = "";
+
+  guint flags = 0;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_free_tone))) flags |= 1;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_std_tone))) flags |= 2;
+  if (current_flags & 4) flags |= 4; // Preserve EautoCorrectEnabled
+
+  guint ib_flags = 0;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_macro_enabled))) ib_flags |= 2;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_check))) ib_flags |= 16;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_no_underline))) ib_flags |= 128;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_rules))) ib_flags |= 256;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_dicts))) ib_flags |= 512;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_auto_capitalize))) ib_flags |= 32768;
+
+  // Preserve other flags in current_ib_flags
+  guint mask_to_preserve = 1 | 32 | 64 | 1024 | 2048;
+  ib_flags |= (current_ib_flags & mask_to_preserve);
+
+  saveConfigOptions(flags, ib_flags, im, cs);
+
+  if (im != NULL && g_strcmp0(im, "") != 0) g_free(im);
+  if (cs != NULL && g_strcmp0(cs, "") != 0) g_free(cs);
+
   close_window_cb(widget, data);
 }
 
@@ -325,7 +366,19 @@ tooltip_press_callback (GtkWidget      *event_box,
 /*
  * Main - program begins here
  */
-int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfg_text) {
+int openGUI(
+    guint flags,
+    guint ibFlags,
+    int mode,
+    guint32 *s,
+    int size,
+    char *mtext,
+    char *cfg_text,
+    char *curIM,
+    char *curCS,
+    char *allIMs,
+    char *allCSs
+) {
   GtkWidget *w;
   GtkWidget *vbox, *vcbox;
   int which;
@@ -333,11 +386,13 @@ int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfg_
   int arr[10] = {0};
 
   key_pairs_tmp = s;
+  current_flags = flags;
+  current_ib_flags = ibFlags;
 
   gtk_init(NULL, NULL);
   /* --- Create the top level window --- */
   w = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_widget_set_size_request(w, 600, 150);
+  gtk_widget_set_size_request(w, 600, 360);
 
   /* --- You should always remember to connect the delete_event
    *     to the main window.
@@ -368,24 +423,115 @@ int openGUI(guint flags, int mode, guint32 *s, int size, char *mtext, char *cfg_
 
 
   GtkWidget *m_notebook;
-    m_notebook = gtk_notebook_new();
+  m_notebook = gtk_notebook_new();
 
-    gtk_container_add(GTK_CONTAINER (w), m_notebook);
+  gtk_container_add(GTK_CONTAINER (w), m_notebook);
 
-    GtkWidget *button;
+  GtkWidget *button;
 
-    GtkWidget* keyboardPage = gtk_label_new("Phím tắt");
-    gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, keyboardPage);
+  GtkWidget* keyboardPage = gtk_label_new("Phím tắt");
+  gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, keyboardPage);
 
-    GtkWidget* macroPage = gtk_label_new("Gõ tắt");
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
-    add_macro_text(vbox, w, mtext, 1);
-    gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, macroPage);
+  // --- Start Settings Page ---
+  GtkWidget* settingsPage = gtk_label_new("Cài đặt");
+  GtkWidget* settings_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  set_margin(settings_vbox, 15, pad);
 
-    GtkWidget* cfgPage = gtk_label_new("Tự định nghĩa kiểu gõ");
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
-    add_macro_text(vbox, w, cfg_text, 0);
-    gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, cfgPage);
+  // Row 1: Kiểu gõ và Bảng mã
+  GtkWidget *row1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+  GtkWidget *lbl_im = gtk_label_new("Kiểu gõ:");
+  combo_im = gtk_combo_box_text_new();
+  GtkWidget *lbl_cs = gtk_label_new("Bảng mã:");
+  combo_cs = gtk_combo_box_text_new();
+
+  gtk_box_pack_start(GTK_BOX(row1), lbl_im, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(row1), combo_im, TRUE, TRUE, 5);
+  gtk_box_pack_start(GTK_BOX(row1), lbl_cs, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(row1), combo_cs, TRUE, TRUE, 5);
+  gtk_box_pack_start(GTK_BOX(settings_vbox), row1, FALSE, FALSE, 5);
+
+  // Populate Kiểu gõ (combo_im)
+  gchar **im_items = g_strsplit(allIMs, ",", -1);
+  for (int i = 0; im_items[i] != NULL; i++) {
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_im), im_items[i]);
+    if (g_strcmp0(im_items[i], curIM) == 0) {
+      gtk_combo_box_set_active(GTK_COMBO_BOX(combo_im), i);
+    }
+  }
+  g_strfreev(im_items);
+
+  // Populate Bảng mã (combo_cs)
+  gchar **cs_items = g_strsplit(allCSs, ",", -1);
+  for (int i = 0; cs_items[i] != NULL; i++) {
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_cs), cs_items[i]);
+    if (g_strcmp0(cs_items[i], curCS) == 0) {
+      gtk_combo_box_set_active(GTK_COMBO_BOX(combo_cs), i);
+    }
+  }
+  g_strfreev(cs_items);
+
+  // Checkboxes
+  GtkWidget *grid = gtk_grid_new();
+  gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+  gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+
+  chk_std_tone = gtk_check_button_new_with_label("Dấu thanh chuẩn (òa, úy...)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_std_tone), (flags & 2) != 0);
+
+  chk_free_tone = gtk_check_button_new_with_label("Bỏ dấu tự do");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_free_tone), (flags & 1) != 0);
+
+  chk_macro_enabled = gtk_check_button_new_with_label("Bật gõ tắt");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_macro_enabled), (ibFlags & 2) != 0);
+
+  chk_auto_capitalize = gtk_check_button_new_with_label("Tự động viết hoa từ gõ tắt");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_auto_capitalize), (ibFlags & 32768) != 0);
+
+  chk_spell_check = gtk_check_button_new_with_label("Kiểm tra chính tả");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_spell_check), (ibFlags & 16) != 0);
+
+  chk_spell_rules = gtk_check_button_new_with_label("Kiểm tra chính tả bằng luật vần");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_spell_rules), (ibFlags & 256) != 0);
+
+  chk_spell_dicts = gtk_check_button_new_with_label("Kiểm tra chính tả bằng từ điển");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_spell_dicts), (ibFlags & 512) != 0);
+
+  chk_no_underline = gtk_check_button_new_with_label("Ẩn gạch chân khi gõ nháp (pre-edit)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_no_underline), (ibFlags & 128) != 0);
+
+  gtk_grid_attach(GTK_GRID(grid), chk_std_tone, 0, 0, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), chk_free_tone, 1, 0, 1, 1);
+
+  gtk_grid_attach(GTK_GRID(grid), chk_spell_check, 0, 1, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), chk_spell_rules, 1, 1, 1, 1);
+
+  gtk_grid_attach(GTK_GRID(grid), chk_spell_dicts, 0, 2, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), chk_no_underline, 1, 2, 1, 1);
+
+  gtk_grid_attach(GTK_GRID(grid), chk_macro_enabled, 0, 3, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), chk_auto_capitalize, 1, 3, 1, 1);
+
+  gtk_box_pack_start(GTK_BOX(settings_vbox), grid, FALSE, FALSE, 10);
+
+  // Control buttons for Settings page
+  GtkWidget *settings_vcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  add_control_buttons(settings_vcbox, w);
+  gtk_widget_set_valign(settings_vcbox, GTK_ALIGN_END);
+  gtk_widget_set_vexpand(settings_vcbox, TRUE);
+  gtk_box_pack_start(GTK_BOX(settings_vbox), settings_vcbox, TRUE, TRUE, 0);
+
+  gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), settings_vbox, settingsPage);
+  // --- End Settings Page ---
+
+  GtkWidget* macroPage = gtk_label_new("Gõ tắt");
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  add_macro_text(vbox, w, mtext, 1);
+  gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, macroPage);
+
+  GtkWidget* cfgPage = gtk_label_new("Tự định nghĩa kiểu gõ");
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  add_macro_text(vbox, w, cfg_text, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), vbox, cfgPage);
 
 
   /*
