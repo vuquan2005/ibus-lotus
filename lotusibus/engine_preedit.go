@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package lotusibus
 
 import (
 	"ibus-lotus/config"
@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/BambooEngine/bamboo-core"
-	ibus "github.com/LotusInputEngine/goibus"
+	ibus "github.com/BambooEngine/goibus"
 	"github.com/godbus/dbus/v5"
 )
 

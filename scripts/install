@@ -17,7 +17,7 @@ case $(uname) in
 		${DESTDIR}${ibus_dir}/component/ \
 		${DESTDIR}${PREFIX}/share/applications/
 		cp -R -f icons data ${DESTDIR}${engine_dir}
-		cp -f ${ibus_e_name} ${DESTDIR}${PREFIX}/lib/ibus-${engine_name}/
+		cp -f bin/${ibus_e_name} ${DESTDIR}${PREFIX}/lib/ibus-${engine_name}/
 		cp -f data/${engine_name}.xml ${DESTDIR}${ibus_dir}/component/
 		cp -f data/${engine_gui_name} ${DESTDIR}${PREFIX}/share/applications/
 		echo "Ibus Lotus successfully installed!"
@@ -28,7 +28,7 @@ case $(uname) in
 		${DESTDIR}${PREFIX}/share/applications/
 
 		cp -R -f icons data ${DESTDIR}${engine_dir}
-		cp -f ${ibus_e_name} ${DESTDIR}${PREFIX}/lib/ibus-${engine_name}/
+		cp -f bin/${ibus_e_name} ${DESTDIR}${PREFIX}/lib/ibus-${engine_name}/
 		cp -f data/${engine_name}-freebsd.xml ${DESTDIR}${ibus_dir}/component/
 		cp -f data/${engine_gui_name} ${DESTDIR}${PREFIX}/share/applications/
 		;;

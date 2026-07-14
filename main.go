@@ -24,9 +24,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
-	ibus "github.com/LotusInputEngine/goibus"
+	"ibus-lotus/lotusibus"
+
+	ibus "github.com/BambooEngine/goibus"
 )
 
 const (
@@ -37,37 +38,24 @@ const (
 var embedded = flag.Bool("ibus", false, "Run the embedded ibus component")
 var version = flag.Bool("version", false, "Show version")
 var gui = flag.Bool("gui", false, "Show GUI")
-var isWayland = false
-var isGnome = false
-var isKDE = false
-
-func hasGnome(env string) bool {
-	return strings.Contains(strings.ToLower(os.Getenv(env)), "gnome")
-}
 
 func main() {
-	if os.Getenv("WAYLAND_DISPLAY") != "" {
-		isWayland = true
-	}
-	if hasGnome("XDG_CURRENT_DESKTOP") || hasGnome("DESKTOP_SESSION") || hasGnome("GDMSESSION") {
-		isGnome = true
-	}
-	if strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP")) == "kde" {
-		isKDE = true
-	}
 	flag.Parse()
+	lotusibus.Embedded = *embedded
+	lotusibus.ShowGUI = *gui
+	lotusibus.Version = Version
 	if *embedded {
-		os.Chdir(DataDir)
+		os.Chdir(lotusibus.DataDir)
 	}
 	if *version {
 		fmt.Println(Version)
 	} else if *embedded {
-		engine := GetIBusEngineCreator()
+		engineCreator := lotusibus.GetIBusEngineCreator()
 		bus := ibus.NewBus()
 		bus.RequestName(ComponentName, 0)
 
 		conn := bus.GetDbusConn()
-		ibus.NewFactory(conn, engine)
+		ibus.NewFactory(conn, engineCreator)
 
 		go func() {
 			<-conn.Context().Done()
@@ -84,15 +72,15 @@ func main() {
 			Name:          "IBusComponent",
 			ComponentName: ComponentName + "Standalone",
 		}
-		engine := &ibus.EngineDesc{
+		engineDesc := &ibus.EngineDesc{
 			Name:       "IBusEngineDesc",
 			EngineName: EngineName + "Standalone",
 		}
-		component.AddEngine(engine)
+		component.AddEngine(engineDesc)
 		bus.RegisterComponent(component)
 
 		conn := bus.GetDbusConn()
-		ibus.NewFactory(conn, GetIBusEngineCreator())
+		ibus.NewFactory(conn, lotusibus.GetIBusEngineCreator())
 
 		bus.CallMethod("SetGlobalEngine", 0, EngineName+"Standalone")
 
@@ -105,3 +93,4 @@ func main() {
 		select {}
 	}
 }
+

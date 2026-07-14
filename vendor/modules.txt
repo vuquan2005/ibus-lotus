@@ -1,9 +1,9 @@
 # github.com/BambooEngine/bamboo-core v0.0.0-20240916131919-b2e49a2b48c7
 ## explicit; go 1.18
 github.com/BambooEngine/bamboo-core
-# github.com/LotusInputEngine/goibus v0.0.0-20250813085656-9db4ede7ac6a
+# github.com/BambooEngine/goibus v0.0.0-20240724150421-cfe61b2f8f77
 ## explicit; go 1.13
-github.com/LotusInputEngine/goibus
+github.com/BambooEngine/goibus
 # github.com/dkolbly/wl v0.0.0-20180220001605-b06f57e7e2e6
 ## explicit
 github.com/dkolbly/wl

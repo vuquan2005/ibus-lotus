@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package lotusibus
 
 type TrieNode struct {
 	isWord   bool

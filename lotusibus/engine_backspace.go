@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package lotusibus
 
 import (
 	"fmt"

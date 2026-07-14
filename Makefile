@@ -40,8 +40,10 @@ all: build archive
 
 archive:
 	cp scripts/prebuilt-install ./install
-	tar -zcf "ibus-lotus-${version}.tar.gz" data icons ibus-engine-lotus ./install
-	rm ./install
+	cp bin/ibus-engine-lotus ./ibus-engine-lotus
+	mkdir -p dist
+	tar -zcf "dist/ibus-lotus-${version}.tar.gz" data icons ibus-engine-lotus ./install
+	rm ./install ./ibus-engine-lotus
 	
 build:
 	$(SHELL) scripts/build
@@ -50,7 +52,7 @@ test:
 	$(SHELL) scripts/test
 
 clean:
-	rm -f ibus-engine-lotus
+	rm -rf bin dist
 	rm -f *_linux *_cover.html go_test_* go_build_* test *.gz test
 	rm -f debian/files
 	rm -rf debian/debhelper*
