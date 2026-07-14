@@ -111,14 +111,19 @@ func (e *IBusLotusEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state u
 
 func (e *IBusLotusEngine) FocusIn() *dbus.Error {
 	log.Print("FocusIn.")
-	var latestWm = e.getLatestWmClass()
-	e.checkWmClass(latestWm)
+	go func() {
+		var latestWm = e.getLatestWmClass()
+		e.Lock()
+		e.checkWmClass(latestWm)
+		currentWm := e.getWmClass()
+		e.Unlock()
+		fmt.Printf("WM_CLASS=(%s)\n", currentWm)
+	}()
 	e.RegisterProperties(e.propList)
 	e.RequireSurroundingText()
 	if e.config.IBflags&config.IBspellCheckWithDicts != 0 && len(dictionary) == 0 {
 		dictionary, _ = loadDictionary(DictVietnameseCm)
 	}
-	fmt.Printf("WM_CLASS=(%s)\n", e.getWmClass())
 	return nil
 }
 
@@ -137,6 +142,7 @@ func (e *IBusLotusEngine) Reset() *dbus.Error {
 
 func (e *IBusLotusEngine) Enable() *dbus.Error {
 	fmt.Print("Enable.")
+	e.RegisterProperties(e.propList)
 	e.RequireSurroundingText()
 	return nil
 }

@@ -34,7 +34,6 @@
             ];
 
             buildInputs = [
-              pkgs.xorg.libXtst
             ];
 
             preConfigure = ''
@@ -66,7 +65,6 @@
             ];
 
             buildInputs = [
-              pkgs.xorg.libXtst
             ];
           };
         }

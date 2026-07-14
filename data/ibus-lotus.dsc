@@ -8,7 +8,7 @@ Architecture: any
 Version: 0.8.4-0
 Maintainer: Luong Thanh Lam <ltlam93@gmail.com>
 Homepage: https://github.com/vuquan2005/ibus-lotus/
-Build-Depends: debhelper (>= 9), golang, libibus-1.0-dev, libx11-dev, libgtk-3-dev, libxt-dev, libxtst-dev
+Build-Depends: debhelper (>= 9), golang, libibus-1.0-dev, libgtk-3-dev
 Files:
  0 0 ibus-lotus-0.8.4.tar.gz
 DEBTRANSFORM-TAR:
