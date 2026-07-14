@@ -24,7 +24,7 @@ debian/debhelper-build-stamp
 debian/ibus-bamboo*
 debian/.debhelper
 *_linux
-*.tar.gz
-ibus-engine-*
+/bin/
+/dist/
 keyboard-shortcut-editor
 macro-editor

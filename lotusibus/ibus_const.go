@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package lotusibus
 
 const (
 	IBusShiftMask   = 1 << 0

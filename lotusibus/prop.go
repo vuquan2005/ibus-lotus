@@ -17,13 +17,13 @@
  *
  */
 
-package main
+package lotusibus
 
 import (
 	"ibus-lotus/config"
 
 	"github.com/BambooEngine/bamboo-core"
-	ibus "github.com/LotusInputEngine/goibus"
+	ibus "github.com/BambooEngine/goibus"
 	"github.com/godbus/dbus/v5"
 )
 
@@ -66,7 +66,7 @@ func GetPropListByConfig(c *config.Config, englishMode bool) *ibus.PropList {
 		preeditChecked = ibus.PROP_STATE_CHECKED
 	}
 	var aboutText = "IBus " + EngineName + " " + Version
-	if !*embedded {
+	if !Embedded {
 		aboutText += " (Debug)"
 	}
 	if c.DefaultInputMode == config.UsIM {

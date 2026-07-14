@@ -33,8 +33,6 @@ int get_shortcut_pair_idx(int row) {
   return 0;
 }
 
-char *fix_fb_alert = "Bật tùy chọn này nếu bạn gặp tình trạng lặp chữ khi chat trong Facebook, Messenger.\n\
-Lưu ý: Tính năng này có thể khiến thanh địa chỉ trên trình duyệt Google Chrome hoạt động không chính xác.";
 char *labels[TOTAL_MASKS_PER_ROW] = {"Ctrl", "Alt", "Shift", "Super"};
 int masks[TOTAL_MASKS_PER_ROW] = {GDK_CONTROL_MASK, GDK_MOD1_MASK, GDK_SHIFT_MASK,
                          GDK_SUPER_MASK};

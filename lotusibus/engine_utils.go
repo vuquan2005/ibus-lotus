@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package lotusibus
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/BambooEngine/bamboo-core"
-	ibus "github.com/LotusInputEngine/goibus"
+	ibus "github.com/BambooEngine/goibus"
 	"github.com/godbus/dbus/v5"
 )
 
@@ -55,7 +55,7 @@ func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 		engine.propList = GetPropListByConfig(cfg, engine.englishMode)
 		engine.shouldEnqueuKeyStrokes = true
 		ibus.PublishEngine(conn, objectPath, engine)
-		if *gui {
+		if ShowGUI {
 			ui.OpenGUI(engine.engineName)
 			os.Exit(0)
 		}
