@@ -20,24 +20,22 @@ sudo/doas pkg install ibus
 - make
 - golang
 - libgtk-3-dev
-- libx11-dev
-- libxtst-dev
 
 ```bash
 # Debian/Ubuntu:
-sudo apt-get install make golang libx11-dev libxtst-dev libgtk-3-dev
+sudo apt-get install make golang libgtk-3-dev
 
 # Fedora
-sudo dnf install make go libX11-devel libXtst-devel gtk3-devel
+sudo dnf install make go gtk3-devel
 
 # CentOS, RHEL, ...
-sudo yum install make go libX11-devel libXtst-devel gtk3-devel
+sudo yum install make go gtk3-devel
 
 # openSUSE Tumbleweed
-sudo zypper install make go libX11-devel libXtst-devel gtk3-devel
+sudo zypper install make go gtk3-devel
 
 # FreeBSD
-sudo/doas pkg install go pkgconf libX11 libXtst gtk3 bash
+sudo/doas pkg install go pkgconf gtk3 bash
 ```
 3. Download
 ```bash

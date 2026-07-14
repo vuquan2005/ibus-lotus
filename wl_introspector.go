@@ -8,9 +8,9 @@ import (
 )
 
 func wlGetFocusWindowClass() (string, error) {
-	if isGnome {
-		return gnomeGetFocusWindowClass()
-	}
+	// if isGnome {
+	// 	return gnomeGetFocusWindowClass()
+	// }
 	if isKDE {
 		return kdeGetFocusWindowClass()
 	}

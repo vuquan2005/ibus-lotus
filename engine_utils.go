@@ -532,12 +532,6 @@ func (e *IBusLotusEngine) getLatestWmClass() string {
 	if isWayland {
 		wmClass, _ = wlGetFocusWindowClass()
 	}
-	/* The user may use XWayland but `isWayland` is still true and
-	unable to get the focused window class, so we do this instead of
-	using if else in any case of being failed to get focused window */
-	if wmClass == "" {
-		wmClass = x11GetFocusWindowClass()
-	}
 
 	wmClass = strings.Replace(wmClass, "\"", "", -1)
 	return wmClass

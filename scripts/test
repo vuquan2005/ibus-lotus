@@ -1,6 +1,6 @@
 # Go flags for FreeBSD
 CGO_CFLAGS_FREEBSD="-I/usr/local/include -std=gnu99"
-CGO_LDFLAGS_FREEBSD="-L/usr/local/lib -lX11 -lXtst -pthread"
+CGO_LDFLAGS_FREEBSD="-L/usr/local/lib -pthread"
 
 # Functions
 case $(uname) in

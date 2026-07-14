@@ -7,7 +7,7 @@ LDFLAGS="-w -s -X main.Version=${version}"
 
 # Go flags for FreeBSD
 CGO_CFLAGS_FREEBSD="-I/usr/local/include -std=gnu99"
-CGO_LDFLAGS_FREEBSD="-L/usr/local/lib -lX11 -pthread"
+CGO_LDFLAGS_FREEBSD="-L/usr/local/lib -pthread"
 
 case $(uname) in
 	"Linux") CGO_ENABLED=1 \

@@ -385,7 +385,7 @@ func GetOptionsPropListByConfig(c *config.Config) *ibus.PropList {
 	toneStdChecked := ibus.PROP_STATE_UNCHECKED
 	toneFreeMarkingChecked := ibus.PROP_STATE_UNCHECKED
 	preeditInvisibilityChecked := ibus.PROP_STATE_UNCHECKED
-	x11FakeBackspaceChecked := ibus.PROP_STATE_UNCHECKED
+	preeditEliminationChecked := ibus.PROP_STATE_UNCHECKED
 
 	if c.Flags&bamboo.EstdToneStyle != 0 {
 		toneStdChecked = ibus.PROP_STATE_CHECKED
@@ -397,7 +397,7 @@ func GetOptionsPropListByConfig(c *config.Config) *ibus.PropList {
 		preeditInvisibilityChecked = ibus.PROP_STATE_CHECKED
 	}
 	if c.IBflags&config.IBpreeditElimination != 0 {
-		x11FakeBackspaceChecked = ibus.PROP_STATE_CHECKED
+		preeditEliminationChecked = ibus.PROP_STATE_CHECKED
 	}
 
 	return ibus.NewPropList(
@@ -445,7 +445,7 @@ func GetOptionsPropListByConfig(c *config.Config) *ibus.PropList {
 			Tooltip:   dbus.MakeVariant(ibus.NewText("Send key via ForwardKeyEvent")),
 			Sensitive: false,
 			Visible:   false,
-			State:     x11FakeBackspaceChecked,
+			State:     preeditEliminationChecked,
 			Symbol:    dbus.MakeVariant(ibus.NewText("X")),
 			SubProps:  dbus.MakeVariant(*ibus.NewPropList()),
 		},
