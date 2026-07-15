@@ -23,6 +23,7 @@
             <icon>/usr/local/share/ibus-lotus/icons/vi.svg</icon>
             <setup>/usr/local/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
         </engine>
+        <!--
         <engine>
             <symbol>vi</symbol>
             <name>Lotus::Us</name>
@@ -77,5 +78,6 @@
             <icon>/usr/local/share/ibus-lotus/icons/us-flag.svg</icon>
             <setup>/usr/local/lib/ibus-lotus/ibus-engine-lotus -gui</setup>
         </engine>
+        -->
     </engines>
 </component>
