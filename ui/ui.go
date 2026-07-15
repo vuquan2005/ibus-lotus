@@ -22,7 +22,6 @@ import "C"
 import (
 	"encoding/json"
 	"ibus-lotus/config"
-	"io/ioutil"
 	"os"
 	"strings"
 	"unsafe"
@@ -60,7 +59,7 @@ func saveConfigText(text *C.char) {
 		cfgText = C.GoString(text)
 		cfgFn   = config.GetConfigPath(engineName)
 	)
-	err := ioutil.WriteFile(cfgFn, []byte(cfgText), 0644)
+	err := config.WriteFileAtomic(cfgFn, []byte(cfgText), 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +71,7 @@ func saveMacroText(text *C.char) {
 		macroText = C.GoString(text)
 		macroFP   = config.GetMacroPath(engineName)
 	)
-	err := ioutil.WriteFile(macroFP, []byte(macroText), 0644)
+	err := config.WriteFileAtomic(macroFP, []byte(macroText), 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -93,7 +92,12 @@ func saveShortcuts(ptr *C.guint32, length int) {
 		cfg = config.LoadConfig(engineName)
 	)
 	codes := makeSliceFromPtr(ptr, length)
-	cfg.Shortcuts = codes
+	if cfg.Shortcuts == nil {
+		cfg.Shortcuts = make(config.ShortcutMap)
+	}
+	cfg.Shortcuts["InputModeSwitch"] = config.Shortcut{Modifier: codes[0], KeyVal: codes[1]}
+	cfg.Shortcuts["RestoreKeyStrokes"] = config.Shortcut{Modifier: codes[2], KeyVal: codes[3]}
+	cfg.Shortcuts["ViEnSwitch"] = config.Shortcut{Modifier: codes[4], KeyVal: codes[5]}
 	config.SaveConfig(cfg, engineName)
 }
 
@@ -110,12 +114,13 @@ func OpenGUI(engName string) {
 	engineName = engName
 	var (
 		cfg           = config.LoadConfig(engineName)
-		shortcuts     = cfg.Shortcuts[:]
+		flatShortcuts = cfg.GetFlatShortcuts()
+		shortcuts     = flatShortcuts[:]
 		s             = (*C.guint32)(&shortcuts[0])
 		size          = len(shortcuts)
 		macroFilePath = config.GetMacroPath(engineName)
 	)
-	mText, err := ioutil.ReadFile(macroFilePath)
+	mText, err := os.ReadFile(macroFilePath)
 	if err != nil {
 		panic(err)
 	}
