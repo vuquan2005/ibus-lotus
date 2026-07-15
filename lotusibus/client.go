@@ -9,7 +9,7 @@ package lotusibus
 import (
 	"sync"
 
-	"golang.org/x/net/context"
+	"context"
 
 	wl "github.com/dkolbly/wl"
 )
