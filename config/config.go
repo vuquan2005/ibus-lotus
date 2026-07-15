@@ -68,6 +68,9 @@ type Config struct {
 	Shortcuts              ShortcutMap
 	DefaultInputMode       int
 	InputModeMapping       map[string]int
+	EnableHwndTracking     bool
+	EnableWmClassTracking    bool
+	EnableFocusToast       bool
 }
 
 func (c *Config) GetFlatShortcuts() [10]uint32 {
@@ -115,8 +118,11 @@ func DefaultCfg() Config {
 			"RestoreKeyStrokes": {Modifier: 0, KeyVal: 0},
 			"ViEnSwitch":        {Modifier: 0, KeyVal: 0},
 		},
-		DefaultInputMode: PreeditIM,
-		InputModeMapping: map[string]int{},
+		DefaultInputMode:      PreeditIM,
+		InputModeMapping:      map[string]int{},
+		EnableHwndTracking:    true,
+		EnableWmClassTracking: true,
+		EnableFocusToast:      true,
 	}
 }
 

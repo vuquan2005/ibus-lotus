@@ -15,7 +15,10 @@ extern int openGUI(
 	char *curIM,
 	char *curCS,
 	char *allIMs,
-	char *allCSs
+	char *allCSs,
+	int enableHwnd,
+	int enableWmClass,
+	int enableToast
 );
 */
 import "C"
@@ -50,6 +53,17 @@ func saveConfigOptions(flags C.uint, ibFlags C.uint, inputMethod *C.char, output
 	cfg.IBflags = uint(ibFlags)
 	cfg.InputMethod = C.GoString(inputMethod)
 	cfg.OutputCharset = C.GoString(outputCharset)
+	config.SaveConfig(cfg, engineName)
+}
+
+//export saveTrackingOptions
+func saveTrackingOptions(enableHwnd C.int, enableWmClass C.int, enableToast C.int) {
+	var (
+		cfg = config.LoadConfig(engineName)
+	)
+	cfg.EnableHwndTracking = (enableHwnd != 0)
+	cfg.EnableWmClassTracking = (enableWmClass != 0)
+	cfg.EnableFocusToast = (enableToast != 0)
 	config.SaveConfig(cfg, engineName)
 }
 
@@ -110,6 +124,13 @@ func makeSliceFromPtr(ptr *C.guint32, size int) [10]uint32 {
 	return out
 }
 
+func boolToInt(b bool) C.int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func OpenGUI(engName string) {
 	engineName = engName
 	var (
@@ -149,5 +170,8 @@ func OpenGUI(engName string) {
 		C.CString(cfg.OutputCharset),
 		C.CString(allInputMethods),
 		C.CString(allOutputCharsets),
+		boolToInt(cfg.EnableHwndTracking),
+		boolToInt(cfg.EnableWmClassTracking),
+		boolToInt(cfg.EnableFocusToast),
 	)
 }

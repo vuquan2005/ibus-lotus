@@ -35,6 +35,10 @@ GtkWidget *chk_spell_rules;
 GtkWidget *chk_spell_dicts;
 GtkWidget *chk_no_underline;
 
+GtkWidget *chk_enable_hwnd;
+GtkWidget *chk_enable_wmclass;
+GtkWidget *chk_enable_toast;
+
 // Global buffers to unify saving
 GtkTextBuffer *macro_buffer = NULL;
 GtkTextBuffer *cfg_buffer = NULL;
@@ -131,6 +135,11 @@ void btn_save_cb(GtkWidget *widget, gpointer data) {
     ib_flags |= (current_ib_flags & mask_to_preserve);
 
     saveConfigOptions(flags, ib_flags, im, cs);
+
+    int enableHwnd = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_hwnd)) ? 1 : 0;
+    int enableWmClass = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_wmclass)) ? 1 : 0;
+    int enableToast = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_toast)) ? 1 : 0;
+    saveTrackingOptions(enableHwnd, enableWmClass, enableToast);
 
     if (im != NULL && g_strcmp0(im, "") != 0) g_free(im);
     if (cs != NULL && g_strcmp0(cs, "") != 0) g_free(cs);
@@ -400,7 +409,10 @@ int openGUI(
     char *curIM,
     char *curCS,
     char *allIMs,
-    char *allCSs
+    char *allCSs,
+    int enableHwnd,
+    int enableWmClass,
+    int enableToast
 ) {
   GtkWidget *w;
   GtkWidget *vbox;
@@ -456,7 +468,7 @@ int openGUI(
 
   /* --- Create the top level window --- */
   w = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_widget_set_size_request(w, 640, 485);
+  gtk_widget_set_size_request(w, 640, 580);
   gtk_container_set_border_width(GTK_CONTAINER(w), 0);
 
   // Set up HeaderBar for modern title decoration
@@ -620,6 +632,29 @@ int openGUI(
   gtk_box_pack_start(GTK_BOX(card_macro), chk_no_underline, FALSE, FALSE, 6);
 
   gtk_box_pack_start(GTK_BOX(settings_vbox), card_macro, FALSE, FALSE, 0);
+
+  // Card 4: Tự động chuyển chế độ gõ
+  GtkWidget *card_tracking = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card_tracking), "card");
+
+  GtkWidget *lbl_tracking = gtk_label_new("Tự động chuyển chế độ gõ");
+  gtk_widget_set_halign(lbl_tracking, GTK_ALIGN_START);
+  gtk_style_context_add_class(gtk_widget_get_style_context(lbl_tracking), "card-title");
+  gtk_box_pack_start(GTK_BOX(card_tracking), lbl_tracking, FALSE, FALSE, 0);
+
+  chk_enable_hwnd = gtk_check_button_new_with_label("Nhớ chế độ gõ riêng cho từng cửa sổ (Window ID)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_hwnd), enableHwnd != 0);
+  gtk_box_pack_start(GTK_BOX(card_tracking), chk_enable_hwnd, FALSE, FALSE, 0);
+
+  chk_enable_wmclass = gtk_check_button_new_with_label("Áp dụng chế độ gõ theo loại ứng dụng (Application)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_wmclass), enableWmClass != 0);
+  gtk_box_pack_start(GTK_BOX(card_tracking), chk_enable_wmclass, FALSE, FALSE, 0);
+
+  chk_enable_toast = gtk_check_button_new_with_label("Hiển thị thông báo chế độ gõ khi bắt đầu nhập liệu");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_toast), enableToast != 0);
+  gtk_box_pack_start(GTK_BOX(card_tracking), chk_enable_toast, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(settings_vbox), card_tracking, FALSE, FALSE, 0);
 
   g_signal_connect(chk_macro_enabled, "toggled", G_CALLBACK(on_macro_enabled_toggled), NULL);
   on_macro_enabled_toggled(GTK_TOGGLE_BUTTON(chk_macro_enabled), NULL);
