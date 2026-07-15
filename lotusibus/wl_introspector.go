@@ -1,6 +1,7 @@
 package lotusibus
 
 import (
+	"encoding/json"
 	"os/exec"
 	"strings"
 
@@ -8,9 +9,9 @@ import (
 )
 
 func wlGetFocusWindowClass() (string, error) {
-	// if isGnome {
-	// 	return gnomeGetFocusWindowClass()
-	// }
+	if isGnome {
+		return gnomeGetFocusWindowClass()
+	}
 	if isKDE {
 		return kdeGetFocusWindowClass()
 	}
@@ -18,7 +19,7 @@ func wlGetFocusWindowClass() (string, error) {
 }
 
 func gnomeGetFocusWindowClass() (string, error) {
-	// Install Window Call Extended extension to make this work
+	// Install Focused Window extension to make this work
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		return "", err
@@ -27,20 +28,27 @@ func gnomeGetFocusWindowClass() (string, error) {
 
 	obj := conn.Object(
 		"org.gnome.Shell",
-		dbus.ObjectPath("/org/gnome/Shell/Extensions/WindowsExt"),
+		dbus.ObjectPath("/org/gnome/shell/extensions/FocusedWindow"),
 	)
 
-	var className string
-	call := obj.Call("org.gnome.Shell.Extensions.WindowsExt.FocusClass", 0)
+	var jsonStr string
+	call := obj.Call("org.gnome.shell.extensions.FocusedWindow.Get", 0)
 	if call.Err != nil {
 		return "", call.Err
 	}
 
-	if err := call.Store(&className); err != nil {
+	if err := call.Store(&jsonStr); err != nil {
 		return "", err
 	}
 
-	return className, nil
+	var data struct {
+		WmClass string `json:"wm_class"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return "", err
+	}
+
+	return data.WmClass, nil
 }
 
 func kdeGetFocusWindowClass() (string, error) {
