@@ -3,6 +3,7 @@ package lotusibus
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 
@@ -16,10 +17,20 @@ type WindowInfo struct {
 
 func wlGetFocusWindowInfo() (WindowInfo, error) {
 	if isGnome {
-		return gnomeGetFocusWindowInfo()
+		info, err := gnomeGetFocusWindowInfo()
+		if err != nil {
+			log.Printf("[DEBUG] Failed to get GNOME focus window info: %v", err)
+			return WindowInfo{}, err
+		}
+		return info, nil
 	}
 	if isKDE {
-		return kdeGetFocusWindowInfo()
+		info, err := kdeGetFocusWindowInfo()
+		if err != nil {
+			log.Printf("[DEBUG] Failed to get KDE focus window info: %v", err)
+			return WindowInfo{}, err
+		}
+		return info, nil
 	}
 	return WindowInfo{}, nil
 }

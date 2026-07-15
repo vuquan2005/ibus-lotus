@@ -20,7 +20,6 @@
 package lotusibus
 
 import (
-	"fmt"
 	"ibus-lotus/config"
 	"log"
 	"strings"
@@ -138,7 +137,7 @@ func (e *IBusLotusEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
 	newText, isWordBreakRune := e.getCommitText(keyVal, keyCode, state)
 	if len(newText) > 0 {
 		if e.shouldAppendDeadKey(newText, oldText) {
-			fmt.Println("Append a deadkey")
+			log.Print("[DEBUG] Append a deadkey")
 			e.bsCommitText([]rune(" "))
 			time.Sleep(10 * time.Millisecond)
 			e.isFirstTimeSendingBS = false
@@ -180,7 +179,7 @@ func (e *IBusLotusEngine) updatePreviousText(oldText, newText string) {
 	if nBackSpace > 0 {
 		e.DeleteCommittedChars(nBackSpace)
 	}
-	log.Printf("Updating Previous Text %s ---> %s\n", oldText, newText)
+	log.Printf("[DEBUG] Updating previous text: %s -> %s", oldText, newText)
 	e.bsCommitText(offsetRunes)
 }
 
@@ -220,7 +219,7 @@ func (e *IBusLotusEngine) updatePreviousTextInBatch(oldText, newText string, isW
 		e.batchCommit(oldText, strings.Join(buffer, ""), nBackSpace, isWordBreakRune)
 		return
 	}
-	log.Printf("Updating Previous Text %s ---> %s\n", oldText, newText)
+	log.Printf("[DEBUG] Updating previous text: %s -> %s", oldText, newText)
 	e.bsCommitText(offsetRunes)
 }
 
@@ -243,8 +242,7 @@ func (e *IBusLotusEngine) batchCommit(oldText string, newText string, nBackSpace
 		var offset = utf8.RuneCountInString(oldText) - nBackSpace
 		patchedRunes = fullRunes[offset:]
 	}
-	log.Printf("\nUpdating Previous Text %s ---> %s\n", oldText, newText)
-	fmt.Print("====================================\n\n")
+	log.Printf("[DEBUG] Updating previous text: %s -> %s", oldText, newText)
 	e.bsCommitText(patchedRunes)
 }
 
@@ -274,7 +272,7 @@ func (e *IBusLotusEngine) DeleteCommittedChars(n int) {
 		return
 	}
 	time.Sleep(20 * time.Millisecond)
-	log.Printf("Deleting %d committed characters via SurroundingText\n", n)
+	log.Printf("[DEBUG] Deleting %d committed characters via SurroundingText", n)
 	e.DeleteSurroundingText(-int32(n), uint32(n))
 	time.Sleep(20 * time.Millisecond)
 }

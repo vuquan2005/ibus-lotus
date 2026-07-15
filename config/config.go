@@ -192,6 +192,6 @@ func SaveConfig(c *Config, engineName string) {
 
 	err = WriteFileAtomic(fmt.Sprintf(configFile, GetConfigDir(engineName), engineName), data, 0644)
 	if err != nil {
-		log.Println(err)
+		log.Printf("[ERROR] Failed to save config: %v", err)
 	}
 }

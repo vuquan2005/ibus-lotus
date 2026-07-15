@@ -59,7 +59,7 @@ func main() {
 
 		go func() {
 			<-conn.Context().Done()
-			log.Println("DBus connection closed, exiting...")
+			log.Println("[INFO ] DBus connection closed, exiting...")
 			os.Exit(0)
 		}()
 
@@ -67,7 +67,7 @@ func main() {
 	} else {
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 		bus := ibus.NewBus()
-		log.Println("Got Bus, Running Standalone")
+		log.Println("[INFO ] Got Bus, Running Standalone")
 		component := &ibus.Component{
 			Name:          "IBusComponent",
 			ComponentName: ComponentName + "Standalone",
@@ -86,11 +86,10 @@ func main() {
 
 		go func() {
 			<-conn.Context().Done()
-			log.Println("DBus connection closed, exiting...")
+			log.Println("[INFO ] DBus connection closed, exiting...")
 			os.Exit(0)
 		}()
 
 		select {}
 	}
 }
-

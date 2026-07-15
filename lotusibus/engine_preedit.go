@@ -192,7 +192,7 @@ func (e *IBusLotusEngine) commitText(str string) {
 	if str == "" {
 		return
 	}
-	log.Printf("Commit Text [%s]\n", str)
+	log.Printf("[INFO ] Commit text: %q", str)
 	var now = time.Now()
 	e.lastCommitText = now.UnixNano()
 	e.CommitText(ibus.NewText(e.encodeText(str)))
