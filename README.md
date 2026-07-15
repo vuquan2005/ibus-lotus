@@ -48,19 +48,17 @@ Mỗi hướng đều có ưu và nhược điểm:
 
 ## Triết lý của dự án
 
-IBus Lotus **không cố gắng chống lại upstream**
+IBus Lotus **không cố gắng chống lại upstream** trong việc gửi phím. Dự án tập trung tối giản hóa động cơ gõ, ưu tiên các cơ chế hiện đại của Wayland thay vì giả lập phím thô kiểu cũ.
 
 Dự án sẽ không:
 
-- Dựa vào các cơ chế không được upstream hỗ trợ
-
 - Phát sinh thêm các cơ chế gửi phím kiểu X11
 
-- Giả lập Backspace hàng loạt
+- Giả lập Backspace hàng loạt (loại bỏ hoàn toàn Backspace Faker)
 
-- Đi vòng qua các API chính thức chỉ để "hoạt động giống Windows"
+- Đi vòng qua các API nhập liệu để "hoạt động giống Windows" khi gửi phím tiếng Việt
 
-Những cách này thường:
+Những cách gửi phím cũ này thường:
 
 - khó bảo trì
 
@@ -68,7 +66,13 @@ Những cách này thường:
 
 - dễ bị hỏng sau mỗi bản cập nhật
 
-Thay vào đó, IBus Lotus chỉ tập trung vào những gì upstream đang khuyến khích sử dụng
+Thay vào đó, IBus Lotus chỉ tập trung vào những gì upstream đang khuyến khích sử dụng:
+- Cải thiện **Pre-edit**
+- Cải thiện **Surrounding Text**
+
+### Ngoại lệ về các tính năng hỗ trợ nân cao trải nghiệm người dùng
+
+Mặc dù hướng tới sự tối giản, dự án hiểu rằng tính năng tự động chuyển đổi chế độ gõ theo từng ứng dụng là cần thiết cho trải nghiệm người dùng trong khi các phương thức hiện tại vẫn còn hạn chế. Vì Wayland hạn chế việc lấy thông tin cửa sổ để đảm bảo bảo mật, tính năng này được triển khai dưới dạng **tùy chọn (opt-in)** và cần các công cụ hỗ trợ ngoài luồng tùy theo môi trường desktop của bạn (xem chi tiết ở phần hướng dẫn thiết lập bên dưới).
 
 ## Mục tiêu
 
@@ -117,6 +121,8 @@ Những thay đổi chính:
 
 - Tinh gọn giao diện và loại bỏ các tuỳ chọn ít còn giá trị sử dụng
 
+- Hỗ trợ tính năng tự động chuyển đổi chế độ gõ (Auto-switch) 3 cấp độ (cửa sổ cụ thể `hwnd`, lớp ứng dụng `wm_class`, hoặc chế độ mặc định) kèm theo trình quản lý quy tắc ứng dụng trong Setup GUI.
+
 ## Kế thừa từ IBus Lotus
 
 Dưới đây là các thay đổi và tính năng đáng chú ý được kế thừa từ dự án [IBus Lotus](https://github.com/LotusInputEngine/ibus-lotus) của tác giả [hien-ngo29](https://github.com/hien-ngo29):
@@ -149,6 +155,28 @@ Dưới đây là các thay đổi và tính năng đáng chú ý được kế 
   - Tích hợp 2666 emojis từ [emojiOne](https://github.com/joypixels/emojione) (hiện tại mình đã loại bỏ phần này, bạn có thể dùng ctrl+. hoặc super+. thử hoặc cài ứng dụng emoji khác)
 
 - Hỗ trợ Wayland tốt trên hai môi trường Desktop Environment chính là GNOME và KDE (Plasma) khi thiết lập thêm các phần mở rộng hoặc công cụ bên thứ ba (chi tiết có thể tham khảo thêm tại hướng dẫn cài đặt của [repo IBus Lotus gốc](https://github.com/LotusInputEngine/ibus-lotus)).
+
+## Hướng dẫn thiết lập tính năng Tự động chuyển đổi chế độ gõ (Auto-Switch)
+
+Do các hạn chế bảo mật của Wayland, IBus Lotus không thể tự động lấy thông tin cửa sổ đang focus một cách trực tiếp. Để sử dụng tính năng này, bạn cần thiết lập thêm:
+
+### 1. Trên GNOME (Wayland)
+Bạn cần cài đặt extension **Focused Window** để xuất thông tin cửa sổ active qua DBus:
+1. Truy cập [Focused Window GNOME Extension](https://extensions.gnome.org/extension/4412/focused-window/) hoặc cài đặt qua ứng dụng **Extension Manager**.
+2. Bật Extension này lên.
+3. Mở cài đặt IBus Lotus -> Tab **Tự động chuyển đổi** -> Bật các quy tắc theo mong muốn.
+
+### 2. Trên KDE Plasma (Wayland)
+Bạn cần cài đặt công cụ `kdotool` để hỗ trợ truy vấn thông tin cửa sổ thông qua KWin Scripting:
+* **Arch Linux**:
+  ```bash
+  yay -S kdotool-git
+  ```
+* **Fedora**:
+  ```bash
+  sudo dnf install kdotool
+  ```
+* Hoặc build từ mã nguồn tại [kdotool GitHub](https://github.com/lucastr/kdotool).
 
 ## Đóng góp
 
