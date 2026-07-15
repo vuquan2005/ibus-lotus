@@ -7,7 +7,6 @@ require (
 	github.com/BambooEngine/goibus v0.0.0-20240724150421-cfe61b2f8f77
 	github.com/dkolbly/wl v0.0.0-20180220001605-b06f57e7e2e6
 	github.com/godbus/dbus/v5 v5.2.2
-	golang.org/x/net v0.57.0
 )
 
 require golang.org/x/sys v0.47.0 // indirect
