@@ -128,6 +128,7 @@ func (e *IBusLotusEngine) keyPressHandler(keyVal, keyCode, state uint32) bool {
 		defer e.preeditor.Reset()
 		if oldMacText != "" {
 			e.updatePreviousText(oldText, oldMacText)
+			e.wordCompleted = true
 			return true
 		}
 		return false
@@ -192,6 +193,7 @@ func (e *IBusLotusEngine) updatePreviousTextInBatch(oldText, newText string, isW
 	if isWordBreakRune {
 		e.preeditor.Reset()
 		buffer = append(buffer, "")
+		e.wordCompleted = true
 	}
 	// isDirty means containing runes that are not committed
 	var isDirty = false
@@ -205,6 +207,7 @@ func (e *IBusLotusEngine) updatePreviousTextInBatch(oldText, newText string, isW
 			buffer[len(buffer)-1] = commitText
 			if isWordBreakRune0 {
 				buffer = append(buffer, "")
+				e.wordCompleted = true
 			}
 			isDirty = true
 		} else {
@@ -234,6 +237,7 @@ func (e *IBusLotusEngine) batchCommit(oldText string, newText string, nBackSpace
 	patchedRunes, patchedBackSpace := e.getOffsetRunes(newText, oldText)
 	if isWordBreakRune {
 		e.bsCommitText(patchedRunes)
+		e.wordCompleted = true
 		return
 	}
 	if patchedBackSpace > nBackSpace {

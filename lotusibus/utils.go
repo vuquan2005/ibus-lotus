@@ -61,9 +61,7 @@ const (
 )
 
 var DefaultBrowserList = []string{
-	"Navigator:Firefox",
-	"google-chrome:Google-chrome",
-	"chromium-browser:Chromium-browser",
+	// "org.mozilla.firefox",
 }
 
 func getEngineSubFile(fileName string) string {

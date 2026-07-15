@@ -56,6 +56,7 @@ type IBusLotusEngine struct {
 	// enqueue key strokes to process later
 	shouldEnqueuKeyStrokes bool
 	currentWordNearCursor  string
+	wordCompleted          bool
 
 	hwndModes            map[string]int
 	hwndFocusOrder       []string
@@ -199,12 +200,42 @@ func (e *IBusLotusEngine) Disable() *dbus.Error {
 
 // @method(in_signature="vuu")
 func (e *IBusLotusEngine) SetSurroundingText(text dbus.Variant, cursorPos uint32, anchorPos uint32) *dbus.Error {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("[ERROR] Recovered panic in SetSurroundingText: %v", err)
+		}
+	}()
+
 	var str = reflect.ValueOf(reflect.ValueOf(text.Value()).Index(2).Interface()).String()
 	var s = []rune(str)
 	if len(s) >= int(cursorPos) {
 		e.currentWordNearCursor = getLastWordFromSentence(string(s[:cursorPos]))
 	} else {
 		e.currentWordNearCursor = getLastWordFromSentence(str)
+	}
+
+	if e.wordCompleted {
+		e.wordCompleted = false
+
+		cPos := int(cursorPos)
+		if cPos < 0 {
+			cPos = 0
+		}
+		if cPos > len(s) {
+			cPos = len(s)
+		}
+		start := cPos - 15
+		if start < 0 {
+			start = 0
+		}
+		end := cPos + 15
+		if end > len(s) {
+			end = len(s)
+		}
+		context := string(s[start:cPos]) + "|" + string(s[cPos:end])
+
+		log.Printf("[DEBUG] SetSurroundingText (word completed): context=%q, currentWord=%q, cursorPos=%d, anchorPos=%d, ready=%t",
+			context, e.currentWordNearCursor, cursorPos, anchorPos, e.isSurroundingTextReady)
 	}
 
 	if !e.isSurroundingTextReady {
