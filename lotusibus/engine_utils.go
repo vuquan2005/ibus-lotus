@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"ibus-lotus/config"
 	"ibus-lotus/ui"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -184,19 +185,32 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 	} else if e.isShortcutKeyPressed(keyVal, state, KSInputModeSwitch) {
 		e.resetBuffer()
 		var msg string
+		var newMode int
 		if e.englishMode {
 			e.englishMode = false
 			e.config.DefaultInputMode = config.PreeditIM
-			msg = "Pre-edit"
+			newMode = config.PreeditIM
+			msg = "🟡 Pre-edit"
 		} else if e.config.DefaultInputMode == config.PreeditIM {
 			e.englishMode = false
 			e.config.DefaultInputMode = config.SurroundingTextIM
-			msg = "Surrounding Text"
+			newMode = config.SurroundingTextIM
+			msg = "🟢 Surrounding Text"
 		} else {
 			e.englishMode = true
-			msg = "English"
+			newMode = config.UsIM
+			msg = "🔵 English"
 		}
-		config.SaveConfig(e.config, e.engineName)
+
+		if e.config.EnableHwndTracking && e.lastFocusedHwnd != "" {
+			e.setHwndMode(e.lastFocusedHwnd, newMode)
+		} else if e.config.EnableWmClassTracking && e.getWmClass() != "" {
+			e.config.InputModeMapping[e.getWmClass()] = newMode
+			config.SaveConfig(e.config, e.engineName)
+		} else {
+			e.config.DefaultInputMode = newMode
+			config.SaveConfig(e.config, e.engineName)
+		}
 		e.showAuxToast(msg)
 
 		e.propList = GetPropListByConfig(e.config, e.englishMode)
@@ -251,7 +265,15 @@ func (e *IBusLotusEngine) runeCount() int {
 }
 
 func (e *IBusLotusEngine) getInputMode() int {
-	if e.getWmClass() != "" {
+	if e.config.EnableHwndTracking && e.lastFocusedHwnd != "" {
+		e.hwndMutex.RLock()
+		im, ok := e.hwndModes[e.lastFocusedHwnd]
+		e.hwndMutex.RUnlock()
+		if ok && config.ImLookupTable[im] != "" {
+			return im
+		}
+	}
+	if e.config.EnableWmClassTracking && e.getWmClass() != "" {
 		if im, ok := e.config.InputModeMapping[e.getWmClass()]; ok && config.ImLookupTable[im] != "" {
 			return im
 		}
@@ -349,13 +371,25 @@ func (e *IBusLotusEngine) ltProcessKeyEvent(keyVal uint32, keyCode uint32, state
 
 func (e *IBusLotusEngine) commitInputModeCandidate() {
 	var im = e.inputModeLookupTable.CursorPos + 1
+
+	if e.config.EnableHwndTracking && e.lastFocusedHwnd != "" {
+		e.setHwndMode(e.lastFocusedHwnd, int(im))
+	}
+
 	if e.getWmClass() == "" {
 		e.config.DefaultInputMode = int(im)
-	} else {
+	} else if e.config.EnableWmClassTracking {
 		e.config.InputModeMapping[e.getWmClass()] = int(im)
+	} else {
+		e.config.DefaultInputMode = int(im)
 	}
 
 	config.SaveConfig(e.config, e.engineName)
+	if im == config.UsIM {
+		e.englishMode = true
+	} else {
+		e.englishMode = false
+	}
 	e.propList = GetPropListByConfig(e.config, e.englishMode)
 	e.RegisterProperties(e.propList)
 }
@@ -538,6 +572,57 @@ func (e *IBusLotusEngine) getLatestWmClass() string {
 	return wmClass
 }
 
+func (e *IBusLotusEngine) getLatestWindowInfo() WindowInfo {
+	if !e.config.EnableAutoSwitch {
+		return WindowInfo{}
+	}
+	var info WindowInfo
+	var err error
+	if isWayland {
+		info, err = wlGetFocusWindowInfo()
+		if err != nil {
+			log.Printf("Error getting window info: %v", err)
+		}
+	}
+	info.Class = strings.Replace(info.Class, "\"", "", -1)
+	return info
+}
+
+func (e *IBusLotusEngine) setHwndMode(hwnd string, mode int) {
+	e.hwndMutex.Lock()
+	defer e.hwndMutex.Unlock()
+
+	// Check if already exists
+	_, exists := e.hwndModes[hwnd]
+	if !exists {
+		// If map is too large, evict the oldest one
+		if len(e.hwndModes) >= 100 {
+			if len(e.hwndFocusOrder) > 0 {
+				oldest := e.hwndFocusOrder[0]
+				delete(e.hwndModes, oldest)
+				e.hwndFocusOrder = e.hwndFocusOrder[1:]
+			} else {
+				// Fallback: delete a random key
+				for k := range e.hwndModes {
+					delete(e.hwndModes, k)
+					break
+				}
+			}
+		}
+		e.hwndFocusOrder = append(e.hwndFocusOrder, hwnd)
+	} else {
+		// Move to the end of focus order
+		for i, h := range e.hwndFocusOrder {
+			if h == hwnd {
+				e.hwndFocusOrder = append(e.hwndFocusOrder[:i], e.hwndFocusOrder[i+1:]...)
+				break
+			}
+		}
+		e.hwndFocusOrder = append(e.hwndFocusOrder, hwnd)
+	}
+	e.hwndModes[hwnd] = mode
+}
+
 func (e *IBusLotusEngine) checkInputMode(im int) bool {
 	return e.getInputMode() == im
 }
@@ -547,7 +632,7 @@ var (
 	auxMutex sync.Mutex
 )
 
-const auxToastDuration = 500 * time.Millisecond
+const auxToastDuration = 600 * time.Millisecond
 
 func (e *IBusLotusEngine) showAuxToast(msg string) {
 	auxMutex.Lock()

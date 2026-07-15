@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 #include "_cgo_export.h"
@@ -34,6 +36,12 @@ GtkWidget *chk_spell_check;
 GtkWidget *chk_spell_rules;
 GtkWidget *chk_spell_dicts;
 GtkWidget *chk_no_underline;
+
+GtkWidget *chk_enable_hwnd;
+GtkWidget *chk_enable_wmclass;
+GtkWidget *chk_enable_toast;
+GtkWidget *chk_enable_autoswitch;
+GtkListStore *list_store;
 
 // Global buffers to unify saving
 GtkTextBuffer *macro_buffer = NULL;
@@ -131,6 +139,46 @@ void btn_save_cb(GtkWidget *widget, gpointer data) {
     ib_flags |= (current_ib_flags & mask_to_preserve);
 
     saveConfigOptions(flags, ib_flags, im, cs);
+
+    int enableHwnd = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_hwnd)) ? 1 : 0;
+    int enableWmClass = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_wmclass)) ? 1 : 0;
+    int enableToast = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_toast)) ? 1 : 0;
+    int enableAutoSwitch = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_enable_autoswitch)) ? 1 : 0;
+
+    // Serialize tree view mappings
+    GtkTreeIter list_iter;
+    gboolean valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(list_store), &list_iter);
+    GString *mapping_gstr = g_string_new("");
+    gboolean first = TRUE;
+
+    while (valid) {
+      gchar *app_class = NULL;
+      gchar *mode_name = NULL;
+      gtk_tree_model_get(GTK_TREE_MODEL(list_store), &list_iter, 0, &app_class, 1, &mode_name, -1);
+
+      if (app_class && strlen(app_class) > 0) {
+        int mode_val = 1;
+        if (g_strcmp0(mode_name, "Tiếng Việt (Surrounding Text)") == 0) {
+          mode_val = 2;
+        } else if (g_strcmp0(mode_name, "Tiếng Anh (Exclusion)") == 0) {
+          mode_val = 3;
+        }
+
+        if (!first) {
+          g_string_append(mapping_gstr, ",");
+        }
+        first = FALSE;
+        g_string_append_printf(mapping_gstr, "%s:%d", app_class, mode_val);
+      }
+
+      if (app_class) g_free(app_class);
+      if (mode_name) g_free(mode_name);
+
+      valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(list_store), &list_iter);
+    }
+
+    saveTrackingOptions(enableHwnd, enableWmClass, enableToast, enableAutoSwitch, mapping_gstr->str);
+    g_string_free(mapping_gstr, TRUE);
 
     if (im != NULL && g_strcmp0(im, "") != 0) g_free(im);
     if (cs != NULL && g_strcmp0(cs, "") != 0) g_free(cs);
@@ -332,6 +380,46 @@ static void on_spell_check_toggled(GtkToggleButton *button, gpointer data) {
   gtk_widget_set_sensitive(chk_spell_dicts, active);
 }
 
+static void on_app_class_edited(GtkCellRendererText *renderer, gchar *path, gchar *new_text, gpointer user_data) {
+  GtkTreeModel *model = GTK_TREE_MODEL(user_data);
+  GtkTreeIter iter;
+  if (gtk_tree_model_get_iter_from_string(model, &iter, path)) {
+    gtk_list_store_set(GTK_LIST_STORE(model), &iter, 0, new_text, -1);
+  }
+}
+
+static void on_mode_edited(GtkCellRendererCombo *renderer, gchar *path, gchar *new_text, gpointer user_data) {
+  GtkTreeModel *model = GTK_TREE_MODEL(user_data);
+  GtkTreeIter iter;
+  if (gtk_tree_model_get_iter_from_string(model, &iter, path)) {
+    gtk_list_store_set(GTK_LIST_STORE(model), &iter, 1, new_text, -1);
+  }
+}
+
+static void on_btn_add_rule_clicked(GtkButton *button, gpointer user_data) {
+  GtkListStore *store = GTK_LIST_STORE(user_data);
+  GtkTreeIter iter;
+  gtk_list_store_append(store, &iter);
+  gtk_list_store_set(store, &iter, 0, "nhap.ten.app", 1, "Tiếng Việt (Pre-edit)", -1);
+}
+
+static void on_btn_delete_rule_clicked(GtkButton *button, gpointer user_data) {
+  GtkTreeView *treeview = GTK_TREE_VIEW(user_data);
+  GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
+  GtkTreeModel *model;
+  GtkTreeIter iter;
+  if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+    gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+  }
+}
+
+static void on_auto_switch_toggled(GtkToggleButton *button, gpointer data) {
+  gboolean active = gtk_toggle_button_get_active(button);
+  gtk_widget_set_sensitive(chk_enable_hwnd, active);
+  gtk_widget_set_sensitive(chk_enable_wmclass, active);
+  gtk_widget_set_sensitive(chk_enable_toast, active);
+}
+
 static void on_macro_enabled_toggled(GtkToggleButton *button, gpointer data) {
   gboolean active = gtk_toggle_button_get_active(button);
   gtk_widget_set_sensitive(chk_auto_capitalize, active);
@@ -400,7 +488,12 @@ int openGUI(
     char *curIM,
     char *curCS,
     char *allIMs,
-    char *allCSs
+    char *allCSs,
+    int enableHwnd,
+    int enableWmClass,
+    int enableToast,
+    int enableAutoSwitch,
+    char *appMappings
 ) {
   GtkWidget *w;
   GtkWidget *vbox;
@@ -456,7 +549,7 @@ int openGUI(
 
   /* --- Create the top level window --- */
   w = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_widget_set_size_request(w, 640, 485);
+  gtk_widget_set_size_request(w, 680, 620);
   gtk_container_set_border_width(GTK_CONTAINER(w), 0);
 
   // Set up HeaderBar for modern title decoration
@@ -625,6 +718,133 @@ int openGUI(
   on_macro_enabled_toggled(GTK_TOGGLE_BUTTON(chk_macro_enabled), NULL);
 
   gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), settings_vbox, settingsPage);
+
+  // --- Page 3: Tự động chuyển chế độ ---
+  GtkWidget *trackingPage = gtk_label_new("Tự động chuyển chế độ");
+  GtkWidget *tracking_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, pad);
+  set_margin(tracking_vbox, 16, 16);
+
+  // Master checkbox
+  chk_enable_autoswitch = gtk_check_button_new_with_label("Bật cơ chế tự động chuyển chế độ gõ");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_autoswitch), enableAutoSwitch != 0);
+  gtk_box_pack_start(GTK_BOX(tracking_vbox), chk_enable_autoswitch, FALSE, FALSE, 0);
+
+  // Sub options card
+  GtkWidget *card_tracking = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card_tracking), "card");
+
+  chk_enable_hwnd = gtk_check_button_new_with_label("Nhớ chế độ gõ riêng cho từng cửa sổ (Window ID)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_hwnd), enableHwnd != 0);
+  gtk_box_pack_start(GTK_BOX(card_tracking), chk_enable_hwnd, FALSE, FALSE, 0);
+
+  chk_enable_wmclass = gtk_check_button_new_with_label("Áp dụng chế độ gõ theo loại ứng dụng (Application/wmclass)");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_wmclass), enableWmClass != 0);
+  gtk_box_pack_start(GTK_BOX(card_tracking), chk_enable_wmclass, FALSE, FALSE, 0);
+
+  chk_enable_toast = gtk_check_button_new_with_label("Hiển thị thông báo chế độ gõ khi bắt đầu nhập liệu");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_enable_toast), enableToast != 0);
+  gtk_box_pack_start(GTK_BOX(card_tracking), chk_enable_toast, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(tracking_vbox), card_tracking, FALSE, FALSE, 0);
+
+  // List editor card
+  GtkWidget *card_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_style_context_add_class(gtk_widget_get_style_context(card_list), "card");
+  gtk_widget_set_vexpand(card_list, TRUE);
+  gtk_widget_set_hexpand(card_list, TRUE);
+
+  GtkWidget *lbl_list = gtk_label_new("Danh sách quy tắc ứng dụng (wmclass)");
+  gtk_widget_set_halign(lbl_list, GTK_ALIGN_START);
+  gtk_style_context_add_class(gtk_widget_get_style_context(lbl_list), "card-title");
+  gtk_box_pack_start(GTK_BOX(card_list), lbl_list, FALSE, FALSE, 0);
+
+  // Scrolled window for TreeView
+  GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_vexpand(scrolled_window, TRUE);
+  gtk_widget_set_hexpand(scrolled_window, TRUE);
+
+  // Create list store
+  list_store = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+
+  // Populate list store
+  if (appMappings && strlen(appMappings) > 0) {
+    gchar **rules = g_strsplit(appMappings, ",", -1);
+    for (int i = 0; rules[i] != NULL; i++) {
+      gchar **kv = g_strsplit(rules[i], ":", 2);
+      if (kv[0] != NULL && kv[1] != NULL) {
+        int val = atoi(kv[1]);
+        char *mode_name = "Tiếng Việt (Pre-edit)";
+        if (val == 2) {
+          mode_name = "Tiếng Việt (Surrounding Text)";
+        } else if (val == 3) {
+          mode_name = "Tiếng Anh (Exclusion)";
+        }
+        GtkTreeIter iter;
+        gtk_list_store_append(list_store, &iter);
+        gtk_list_store_set(list_store, &iter, 0, kv[0], 1, mode_name, -1);
+      }
+      g_strfreev(kv);
+    }
+    g_strfreev(rules);
+  }
+
+  // TreeView
+  GtkWidget *treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(list_store));
+  gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(treeview), TRUE);
+  
+  // Column 1: App Class
+  GtkCellRenderer *renderer_app = gtk_cell_renderer_text_new();
+  g_object_set(renderer_app, "editable", TRUE, NULL);
+  g_signal_connect(renderer_app, "edited", G_CALLBACK(on_app_class_edited), list_store);
+  GtkTreeViewColumn *col_app = gtk_tree_view_column_new_with_attributes("Tên ứng dụng (wmclass)", renderer_app, "text", 0, NULL);
+  gtk_tree_view_column_set_resizable(col_app, TRUE);
+  gtk_tree_view_column_set_expand(col_app, TRUE);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col_app);
+
+  // Column 2: Mode Name
+  GtkCellRenderer *renderer_mode = gtk_cell_renderer_combo_new();
+  GtkListStore *combo_store = gtk_list_store_new(1, G_TYPE_STRING);
+  GtkTreeIter combo_iter;
+  gtk_list_store_append(combo_store, &combo_iter);
+  gtk_list_store_set(combo_store, &combo_iter, 0, "Tiếng Việt (Pre-edit)", -1);
+  gtk_list_store_append(combo_store, &combo_iter);
+  gtk_list_store_set(combo_store, &combo_iter, 0, "Tiếng Việt (Surrounding Text)", -1);
+  gtk_list_store_append(combo_store, &combo_iter);
+  gtk_list_store_set(combo_store, &combo_iter, 0, "Tiếng Anh (Exclusion)", -1);
+
+  g_object_set(renderer_mode,
+               "model", GTK_TREE_MODEL(combo_store),
+               "text-column", 0,
+               "has-entry", FALSE,
+               "editable", TRUE,
+               NULL);
+  g_signal_connect(renderer_mode, "edited", G_CALLBACK(on_mode_edited), list_store);
+  GtkTreeViewColumn *col_mode = gtk_tree_view_column_new_with_attributes("Chế độ gõ", renderer_mode, "text", 1, NULL);
+  gtk_tree_view_column_set_resizable(col_mode, TRUE);
+  gtk_tree_view_column_set_min_width(col_mode, 200);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col_mode);
+
+  gtk_container_add(GTK_CONTAINER(scrolled_window), treeview);
+  gtk_box_pack_start(GTK_BOX(card_list), scrolled_window, TRUE, TRUE, 0);
+
+  // Buttons box for List Store
+  GtkWidget *btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+  GtkWidget *btn_add = gtk_button_new_with_label("Thêm quy tắc");
+  g_signal_connect(btn_add, "clicked", G_CALLBACK(on_btn_add_rule_clicked), list_store);
+  gtk_box_pack_start(GTK_BOX(btn_box), btn_add, FALSE, FALSE, 0);
+
+  GtkWidget *btn_delete = gtk_button_new_with_label("Xóa quy tắc");
+  g_signal_connect(btn_delete, "clicked", G_CALLBACK(on_btn_delete_rule_clicked), treeview);
+  gtk_box_pack_start(GTK_BOX(btn_box), btn_delete, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(card_list), btn_box, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(tracking_vbox), card_list, TRUE, TRUE, 0);
+
+  g_signal_connect(chk_enable_autoswitch, "toggled", G_CALLBACK(on_auto_switch_toggled), NULL);
+  on_auto_switch_toggled(GTK_TOGGLE_BUTTON(chk_enable_autoswitch), NULL);
+
+  gtk_notebook_append_page(GTK_NOTEBOOK(m_notebook), tracking_vbox, trackingPage);
 
   // --- Page 3: Gõ tắt ---
   GtkWidget* macroPage = gtk_label_new("Gõ tắt");

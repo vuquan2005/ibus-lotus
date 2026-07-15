@@ -57,6 +57,12 @@ type IBusLotusEngine struct {
 	// enqueue key strokes to process later
 	shouldEnqueuKeyStrokes bool
 	currentWordNearCursor  string
+
+	hwndModes              map[string]int
+	hwndFocusOrder         []string
+	hwndMutex              sync.RWMutex
+	lastFocusedHwnd        string
+	shouldShowFocusToast   bool
 }
 
 func NewIbusLotusEngine(name string, cfg *config.Config, base IEngine, preeditor bamboo.IEngine) *IBusLotusEngine {
@@ -65,6 +71,7 @@ func NewIbusLotusEngine(name string, cfg *config.Config, base IEngine, preeditor
 		IEngine:    base,
 		preeditor:  preeditor,
 		config:     cfg,
+		hwndModes:  make(map[string]int),
 	}
 }
 
@@ -93,6 +100,20 @@ func (e *IBusLotusEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state u
 		return false, nil
 	}
 
+	if e.shouldShowFocusToast {
+		e.shouldShowFocusToast = false
+		go func() {
+			mode := e.getInputMode()
+			msg := "🟡 Pre-edit"
+			if mode == config.UsIM {
+				msg = "🔵 English"
+			} else if mode == config.SurroundingTextIM {
+				msg = "🟢 Surrounding Text"
+			}
+			e.showAuxToast(msg)
+		}()
+	}
+
 	if ret, retValue := e.processShortcutKey(keyVal, keyCode, state); ret {
 		return retValue, nil
 	}
@@ -110,13 +131,40 @@ func (e *IBusLotusEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state u
 
 func (e *IBusLotusEngine) FocusIn() *dbus.Error {
 	log.Print("FocusIn.")
+	if !e.config.EnableAutoSwitch {
+		e.RegisterProperties(e.propList)
+		e.RequireSurroundingText()
+		if e.config.IBflags&config.IBspellCheckWithDicts != 0 && len(dictionary) == 0 {
+			dictionary, _ = loadDictionary(DictVietnameseCm)
+		}
+		return nil
+	}
 	go func() {
-		var latestWm = e.getLatestWmClass()
+		info := e.getLatestWindowInfo()
 		e.Lock()
-		e.checkWmClass(latestWm)
+
+		windowChanged := false
+		if info.ID != "" && info.ID != e.lastFocusedHwnd {
+			e.lastFocusedHwnd = info.ID
+			windowChanged = true
+		}
+
+		e.checkWmClass(info.Class)
 		currentWm := e.getWmClass()
+
+		activeMode := e.getInputMode()
+		if activeMode == config.UsIM {
+			e.englishMode = true
+		} else {
+			e.englishMode = false
+		}
+
+		if windowChanged && e.config.EnableFocusToast {
+			e.shouldShowFocusToast = true
+		}
+
 		e.Unlock()
-		fmt.Printf("WM_CLASS=(%s)\n", currentWm)
+		fmt.Printf("WM_CLASS=(%s) HWND=(%s) MODE=(%d)\n", currentWm, info.ID, activeMode)
 	}()
 	e.RegisterProperties(e.propList)
 	e.RequireSurroundingText()
