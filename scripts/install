@@ -5,7 +5,11 @@ engine_name="lotus"
 engine_gui_name="ibus-setup-Lotus.desktop"
 ibus_e_name="ibus-engine-${engine_name}"
 pkg_name="ibus-${engine_name}"
-version="1.0.2"
+if [ -z "$VERSION" ]; then
+	echo "Error: VERSION environment variable is required. Please run via Makefile." >&2
+	exit 1
+fi
+version="$VERSION"
 
 engine_dir=${PREFIX}/share/${pkg_name}
 ibus_dir=${PREFIX}/share/ibus

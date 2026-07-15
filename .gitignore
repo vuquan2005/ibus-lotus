@@ -19,10 +19,6 @@ xtest
 .ccls-cache/
 test-data/
 src/*/.git
-debian/files
-debian/debhelper-build-stamp
-debian/ibus-bamboo*
-debian/.debhelper
 *_linux
 /bin/
 /dist/

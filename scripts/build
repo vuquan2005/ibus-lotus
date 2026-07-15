@@ -1,6 +1,10 @@
 # Ibus lotus
 ibus_e_name="bin/ibus-engine-lotus"
-version="1.0.2"
+if [ -z "$VERSION" ]; then
+	echo "Error: VERSION environment variable is required. Please run via Makefile." >&2
+	exit 1
+fi
+version="$VERSION"
 
 # Go flags
 LDFLAGS="-w -s -X main.Version=${version} -X ibus-lotus/lotusibus.Version=${version}"
