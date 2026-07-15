@@ -21,6 +21,7 @@ package lotusibus
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -318,4 +319,42 @@ var vnSymMapping = map[rune]uint32{
 	'ĩ': 0x03b5,
 	'Ũ': 0x03dd,
 	'ũ': 0x03fd,
+}
+
+func getKeyValName(keyVal uint32) string {
+	switch keyVal {
+	case IBusBackSpace:
+		return "BackSpace"
+	case IBusTab:
+		return "Tab"
+	case IBusReturn:
+		return "Return"
+	case IBusEscape:
+		return "Escape"
+	case IBusLeft:
+		return "Left"
+	case IBusRight:
+		return "Right"
+	case IBusUp:
+		return "Up"
+	case IBusDown:
+		return "Down"
+	case IBusPageUp:
+		return "PageUp"
+	case IBusPageDown:
+		return "PageDown"
+	case IBusShiftL:
+		return "ShiftL"
+	case IBusShiftR:
+		return "ShiftR"
+	case IBusSpace:
+		return "Space"
+	case IBusCapsLock:
+		return "CapsLock"
+	}
+	r := rune(keyVal)
+	if r >= 32 && r < 127 {
+		return fmt.Sprintf("%q", string(r))
+	}
+	return fmt.Sprintf("0x%04x", keyVal)
 }

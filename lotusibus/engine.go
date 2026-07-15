@@ -20,7 +20,6 @@
 package lotusibus
 
 import (
-	"fmt"
 	"log"
 	"os/exec"
 	"reflect"
@@ -58,11 +57,11 @@ type IBusLotusEngine struct {
 	shouldEnqueuKeyStrokes bool
 	currentWordNearCursor  string
 
-	hwndModes              map[string]int
-	hwndFocusOrder         []string
-	hwndMutex              sync.RWMutex
-	lastFocusedHwnd        string
-	shouldShowFocusToast   bool
+	hwndModes            map[string]int
+	hwndFocusOrder       []string
+	hwndMutex            sync.RWMutex
+	lastFocusedHwnd      string
+	shouldShowFocusToast bool
 }
 
 func NewIbusLotusEngine(name string, cfg *config.Config, base IEngine, preeditor bamboo.IEngine) *IBusLotusEngine {
@@ -105,9 +104,10 @@ func (e *IBusLotusEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state u
 		go func() {
 			mode := e.getInputMode()
 			msg := "🟡 Pre-edit"
-			if mode == config.UsIM {
+			switch mode {
+			case config.UsIM:
 				msg = "🔵 English"
-			} else if mode == config.SurroundingTextIM {
+			case config.SurroundingTextIM:
 				msg = "🟢 Surrounding Text"
 			}
 			e.showAuxToast(msg)
@@ -121,8 +121,7 @@ func (e *IBusLotusEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state u
 	if !isValidState(state) {
 		return false, nil
 	}
-	fmt.Printf("\n")
-	log.Printf(">>>>ProcessKeyEvent >  %d | state %d keyVal 0x%04x | %c <<<<\n", len(keyPressChan), state, keyVal, rune(keyVal))
+	log.Printf("[DEBUG] ProcessKeyEvent: key=%s state=0x%x queue=%d", getKeyValName(keyVal), state, len(keyPressChan))
 	if e.inBackspaceWhiteList() {
 		return e.bsProcessKeyEvent(keyVal, keyCode, state)
 	}
@@ -130,57 +129,56 @@ func (e *IBusLotusEngine) ProcessKeyEvent(keyVal uint32, keyCode uint32, state u
 }
 
 func (e *IBusLotusEngine) FocusIn() *dbus.Error {
-	log.Print("FocusIn.")
-	if !e.config.EnableAutoSwitch {
-		e.RegisterProperties(e.propList)
-		e.RequireSurroundingText()
-		if e.config.IBflags&config.IBspellCheckWithDicts != 0 && len(dictionary) == 0 {
-			dictionary, _ = loadDictionary(DictVietnameseCm)
-		}
-		return nil
-	}
-	go func() {
-		info := e.getLatestWindowInfo()
-		e.Lock()
+	log.Print("[DEBUG] FocusIn")
 
-		windowChanged := false
-		if info.ID != "" && info.ID != e.lastFocusedHwnd {
-			e.lastFocusedHwnd = info.ID
-			windowChanged = true
-		}
-
-		e.checkWmClass(info.Class)
-		currentWm := e.getWmClass()
-
-		activeMode := e.getInputMode()
-		if activeMode == config.UsIM {
-			e.englishMode = true
-		} else {
-			e.englishMode = false
-		}
-
-		if windowChanged && e.config.EnableFocusToast {
-			e.shouldShowFocusToast = true
-		}
-
-		e.Unlock()
-		fmt.Printf("WM_CLASS=(%s) HWND=(%s) MODE=(%d)\n", currentWm, info.ID, activeMode)
-	}()
 	e.RegisterProperties(e.propList)
 	e.RequireSurroundingText()
 	if e.config.IBflags&config.IBspellCheckWithDicts != 0 && len(dictionary) == 0 {
 		dictionary, _ = loadDictionary(DictVietnameseCm)
 	}
+
+	if !e.config.EnableAutoSwitch {
+		return nil
+	}
+
+	go func() {
+		info := e.getLatestWindowInfo()
+		e.Lock()
+
+		windowChanged := info.ID != "" && info.ID != e.lastFocusedHwnd
+		classChanged := info.Class != "" && info.Class != e.wmClasses
+
+		if !windowChanged && !classChanged {
+			e.Unlock()
+			return
+		}
+
+		if windowChanged {
+			e.lastFocusedHwnd = info.ID
+			if e.config.EnableFocusToast {
+				e.shouldShowFocusToast = true
+			}
+		}
+
+		e.checkWmClass(info.Class)
+		currentWm := e.getWmClass()
+		activeMode := e.getInputMode()
+		e.englishMode = (activeMode == config.UsIM)
+
+		e.Unlock()
+		log.Printf("[INFO ] Active window changed: WM_CLASS=%q HWND=%q, Mode=%s (EnglishMode=%t)", currentWm, info.ID, getInputModeName(activeMode), e.englishMode)
+	}()
+
 	return nil
 }
 
 func (e *IBusLotusEngine) FocusOut() *dbus.Error {
-	log.Print("FocusOut.")
+	log.Print("[DEBUG] FocusOut")
 	return nil
 }
 
 func (e *IBusLotusEngine) Reset() *dbus.Error {
-	fmt.Print("Reset.\n")
+	log.Print("[DEBUG] Reset")
 	if e.checkInputMode(config.PreeditIM) {
 		e.preeditor.Reset()
 	}
@@ -188,22 +186,26 @@ func (e *IBusLotusEngine) Reset() *dbus.Error {
 }
 
 func (e *IBusLotusEngine) Enable() *dbus.Error {
-	fmt.Print("Enable.")
+	log.Print("[DEBUG] Enable")
 	e.RegisterProperties(e.propList)
 	e.RequireSurroundingText()
 	return nil
 }
 
 func (e *IBusLotusEngine) Disable() *dbus.Error {
-	fmt.Print("Disable.")
+	log.Print("[DEBUG] Disable")
 	return nil
 }
 
 // @method(in_signature="vuu")
 func (e *IBusLotusEngine) SetSurroundingText(text dbus.Variant, cursorPos uint32, anchorPos uint32) *dbus.Error {
 	var str = reflect.ValueOf(reflect.ValueOf(text.Value()).Index(2).Interface()).String()
-	e.currentWordNearCursor = getLastWordFromSentence(str)
-	fmt.Println("Current word: ", e.currentWordNearCursor)
+	var s = []rune(str)
+	if len(s) >= int(cursorPos) {
+		e.currentWordNearCursor = getLastWordFromSentence(string(s[:cursorPos]))
+	} else {
+		e.currentWordNearCursor = getLastWordFromSentence(str)
+	}
 
 	if !e.isSurroundingTextReady {
 		//fmt.Println("Surrounding Text is not ready yet.")
@@ -213,16 +215,15 @@ func (e *IBusLotusEngine) SetSurroundingText(text dbus.Variant, cursorPos uint32
 	defer func() {
 		e.Unlock()
 		if err := recover(); err != nil {
-			fmt.Println(err)
+			log.Printf("[ERROR] Recovered panic in SetSurroundingText: %v", err)
 		}
 	}()
 	if e.inBackspaceWhiteList() {
-		var s = []rune(str)
 		if len(s) < int(cursorPos) {
 			return nil
 		}
 		var cs = s[:cursorPos]
-		fmt.Println("Surrounding Text: ", string(cs))
+		log.Printf("[DEBUG] Surrounding text: %q, Current word: %q", string(cs), e.currentWordNearCursor)
 		if len(cs) == 0 || cs[len(cs)-1] == ' ' || bamboo.IsWordBreakSymbol(cs[len(cs)-1]) || bamboo.IsPunctuationMark(cs[len(cs)-1]) {
 			// Do not consume isSurroundingTextReady yet as it is not a rebuildable word.
 			return nil
@@ -328,8 +329,15 @@ func (e *IBusLotusEngine) applyConfig() {
 			e.macroTable.Disable()
 		}
 	}
+	activeMode := e.getInputMode()
+	if activeMode == config.UsIM {
+		e.englishMode = true
+	} else {
+		e.englishMode = false
+	}
 	e.propList = GetPropListByConfig(e.config, e.englishMode)
 	var inputMethod = bamboo.ParseInputMethod(e.config.InputMethodDefinitions, e.config.InputMethod)
 	e.preeditor = bamboo.NewEngine(inputMethod, e.config.Flags)
 	e.RegisterProperties(e.propList)
+	log.Printf("[INFO ] Config applied. Input mode: %s (EnglishMode=%t)", getInputModeName(activeMode), e.englishMode)
 }

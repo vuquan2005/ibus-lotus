@@ -46,7 +46,7 @@ func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 	return func(conn *dbus.Conn, ngName string) dbus.ObjectPath {
 		var ngGroupName = strings.Split(ngName, "::")[0]
 		var engineName = strings.ToLower(ngGroupName)
-		fmt.Printf("Got engine name: %s", engineName)
+		log.Printf("[INFO ] Initialized engine: %s", engineName)
 		var cfg = config.LoadConfig(engineName)
 		var objectPath = dbus.ObjectPath(fmt.Sprintf("/org/freedesktop/IBus/Engine/%s/%d", engineName, time.Now().UnixNano()))
 		var inputMethod = bamboo.ParseInputMethod(cfg.InputMethodDefinitions, cfg.InputMethod)
@@ -211,6 +211,7 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 			e.config.DefaultInputMode = newMode
 			config.SaveConfig(e.config, e.engineName)
 		}
+		log.Printf("[INFO ] Input mode switched by shortcut to: %s (EnglishMode=%t)", getInputModeName(newMode), e.englishMode)
 		e.showAuxToast(msg)
 
 		e.propList = GetPropListByConfig(e.config, e.englishMode)
@@ -334,16 +335,17 @@ func (e *IBusLotusEngine) ltProcessKeyEvent(keyVal uint32, keyCode uint32, state
 		return true, false
 	}
 	var keyRune = rune(keyVal)
-	if keyVal == IBusLeft || keyVal == IBusUp {
+	switch keyVal {
+	case IBusLeft, IBusUp:
 		e.CursorUp()
 		return true, true
-	} else if keyVal == IBusRight || keyVal == IBusDown {
+	case IBusRight, IBusDown:
 		e.CursorDown()
 		return true, true
-	} else if keyVal == IBusPageUp {
+	case IBusPageUp:
 		e.PageUp()
 		return true, true
-	} else if keyVal == IBusPageDown {
+	case IBusPageDown:
 		e.PageDown()
 		return true, true
 	}
@@ -392,6 +394,7 @@ func (e *IBusLotusEngine) commitInputModeCandidate() {
 	}
 	e.propList = GetPropListByConfig(e.config, e.englishMode)
 	e.RegisterProperties(e.propList)
+	log.Printf("[INFO ] Input mode committed from lookup table: %s (EnglishMode=%t)", getInputModeName(int(im)), e.englishMode)
 }
 
 func (e *IBusLotusEngine) closeInputModeCandidates() {
@@ -581,7 +584,7 @@ func (e *IBusLotusEngine) getLatestWindowInfo() WindowInfo {
 	if isWayland {
 		info, err = wlGetFocusWindowInfo()
 		if err != nil {
-			log.Printf("Error getting window info: %v", err)
+			log.Printf("[ERROR] Failed to get window info: %v", err)
 		}
 	}
 	info.Class = strings.Replace(info.Class, "\"", "", -1)
@@ -621,6 +624,7 @@ func (e *IBusLotusEngine) setHwndMode(hwnd string, mode int) {
 		e.hwndFocusOrder = append(e.hwndFocusOrder, hwnd)
 	}
 	e.hwndModes[hwnd] = mode
+	log.Printf("[INFO ] Set window input mode: HWND=%s, Mode=%s", hwnd, getInputModeName(mode))
 }
 
 func (e *IBusLotusEngine) checkInputMode(im int) bool {
@@ -649,4 +653,17 @@ func (e *IBusLotusEngine) showAuxToast(msg string) {
 		defer auxMutex.Unlock()
 		e.HideAuxiliaryText()
 	})
+}
+
+func getInputModeName(mode int) string {
+	switch mode {
+	case config.PreeditIM:
+		return "Pre-edit"
+	case config.SurroundingTextIM:
+		return "Surrounding Text"
+	case config.UsIM:
+		return "English"
+	default:
+		return "Unknown"
+	}
 }
