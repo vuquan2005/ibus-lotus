@@ -80,7 +80,7 @@ const (
 	IBusCapsLock        = 0xffe5
 	IBusHyperR          = 0xffee
 	IBusOpenLookupTable = IBusTilde
-	_IBusOpenEmojiTable  = IBusColon //deprecated
+	_IBusOpenEmojiTable = IBusColon //deprecated
 )
 
 const (

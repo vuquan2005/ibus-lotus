@@ -290,8 +290,6 @@ func GetSpellCheckingPropListByConfig(c *config.Config) *ibus.PropList {
 	)
 }
 
-
-
 func GetOptionsPropListByConfig(c *config.Config) *ibus.PropList {
 	// tone
 	toneStdChecked := ibus.PROP_STATE_UNCHECKED

@@ -97,48 +97,51 @@ gint btn_reset_cb(GtkWidget *widget, gpointer *data) {
  * data field.
  */
 void btn_save_cb(GtkWidget *widget, gpointer data) {
-  saveShortcuts(key_pairs_tmp, 10);
-
-  gchar *im = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_im));
-  gchar *cs = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_cs));
-  if (im == NULL) im = "";
-  if (cs == NULL) cs = "";
-
-  guint flags = 0;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_free_tone))) flags |= 1;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_std_tone))) flags |= 2;
-  if (current_flags & 4) flags |= 4; // Preserve EautoCorrectEnabled
-
-  guint ib_flags = 0;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_macro_enabled))) ib_flags |= 2;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_check))) ib_flags |= 16;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_no_underline))) ib_flags |= 128;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_rules))) ib_flags |= 256;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_dicts))) ib_flags |= 512;
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_auto_capitalize))) ib_flags |= 32768;
-
-  // Preserve other flags in current_ib_flags
-  guint mask_to_preserve = 1 | 32 | 64 | 1024 | 2048;
-  ib_flags |= (current_ib_flags & mask_to_preserve);
-
-  saveConfigOptions(flags, ib_flags, im, cs);
-
-  if (im != NULL && g_strcmp0(im, "") != 0) g_free(im);
-  if (cs != NULL && g_strcmp0(cs, "") != 0) g_free(cs);
-
-  // Save macro and config text if they were loaded in UI
-  if (macro_buffer != NULL) {
-    GtkTextIter start, end;
-    gtk_text_buffer_get_bounds(macro_buffer, &start, &end);
-    gchar *text = gtk_text_buffer_get_text(macro_buffer, &start, &end, FALSE);
-    saveMacroText(text);
-    g_free(text);
-  }
-  if (cfg_buffer != NULL) {
+  // Save config JSON only if the raw editor buffer was actually modified.
+  if (cfg_buffer != NULL && gtk_text_buffer_get_modified(cfg_buffer)) {
     GtkTextIter start, end;
     gtk_text_buffer_get_bounds(cfg_buffer, &start, &end);
     gchar *text = gtk_text_buffer_get_text(cfg_buffer, &start, &end, FALSE);
     saveConfigText(text);
+    g_free(text);
+  } else {
+    // Otherwise, save the GUI shortcuts and options.
+    saveShortcuts(key_pairs_tmp, 10);
+
+    gchar *im = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_im));
+    gchar *cs = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_cs));
+    if (im == NULL) im = "";
+    if (cs == NULL) cs = "";
+
+    guint flags = 0;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_free_tone))) flags |= 1;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_std_tone))) flags |= 2;
+    if (current_flags & 4) flags |= 4; // Preserve EautoCorrectEnabled
+
+    guint ib_flags = 0;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_macro_enabled))) ib_flags |= 2;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_check))) ib_flags |= 16;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_no_underline))) ib_flags |= 128;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_rules))) ib_flags |= 256;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_spell_dicts))) ib_flags |= 512;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_auto_capitalize))) ib_flags |= 32768;
+
+    // Preserve other flags in current_ib_flags
+    guint mask_to_preserve = 1 | 32 | 64 | 1024 | 2048;
+    ib_flags |= (current_ib_flags & mask_to_preserve);
+
+    saveConfigOptions(flags, ib_flags, im, cs);
+
+    if (im != NULL && g_strcmp0(im, "") != 0) g_free(im);
+    if (cs != NULL && g_strcmp0(cs, "") != 0) g_free(cs);
+  }
+
+  // Save macro text only if it was actually modified by the user.
+  if (macro_buffer != NULL && gtk_text_buffer_get_modified(macro_buffer)) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(macro_buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(macro_buffer, &start, &end, FALSE);
+    saveMacroText(text);
     g_free(text);
   }
 
@@ -229,6 +232,7 @@ void add_macro_text(GtkWidget *widget, GtkWidget *w, char *macro_text, int saveM
   buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (macro_tv));
 
   gtk_text_buffer_set_text (buffer, macro_text, -1);
+  gtk_text_buffer_set_modified (buffer, FALSE);
   gtk_container_add(GTK_CONTAINER(scrolled_window), macro_tv);
   gtk_scrolled_window_set_propagate_natural_width(GTK_SCROLLED_WINDOW(scrolled_window), 1);
   gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(scrolled_window), 1);

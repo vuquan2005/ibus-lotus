@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"ibus-lotus/config"
 	"ibus-lotus/ui"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -68,14 +67,6 @@ func GetIBusEngineCreator() func(*dbus.Conn, string) dbus.ObjectPath {
 
 const KeypressDelayMs = 10
 
-func (e *IBusLotusEngine) isShortcutKeyEnable(ski uint) bool {
-	if int(ski+2) > len(e.config.Shortcuts) {
-		return false
-	}
-	l := e.config.Shortcuts[ski : ski+2]
-	return l[1] > 0
-}
-
 func (e *IBusLotusEngine) init() {
 	initConfigFiles(e.engineName)
 	if e.macroTable == nil {
@@ -97,11 +88,11 @@ func initConfigFiles(engineName string) {
 	macroPath := config.GetMacroPath(engineName)
 	if _, err := os.Stat(macroPath); os.IsNotExist(err) {
 		sampleFile := getEngineSubFile(sampleMactabFile)
-		sample, err := ioutil.ReadFile(sampleFile)
+		sample, err := os.ReadFile(sampleFile)
 		if err != nil {
 			panic(err)
 		}
-		err = ioutil.WriteFile(macroPath, sample, 0644)
+		err = os.WriteFile(macroPath, sample, 0644)
 		if err != nil {
 			panic(err)
 		}
@@ -149,13 +140,23 @@ func (e *IBusLotusEngine) checkWmClass(newId string) {
 	}
 }
 
+func (e *IBusLotusEngine) isShortcutKeyEnable(ski uint) bool {
+	flat := e.config.GetFlatShortcuts()
+	if int(ski+2) > len(flat) {
+		return false
+	}
+	l := flat[ski : ski+2]
+	return l[1] > 0
+}
+
 func (e *IBusLotusEngine) isShortcutKeyPressed(keyVal, state uint32, shortcut uint) bool {
 	if !e.isShortcutKeyEnable(shortcut) {
 		return false
 	}
 	realState := state & IBusDefaultModMask
 	lowerKey := uint32(unicode.ToLower(rune(keyVal)))
-	shortcuts := e.config.Shortcuts[shortcut : shortcut+2]
+	flat := e.config.GetFlatShortcuts()
+	shortcuts := flat[shortcut : shortcut+2]
 	ret := shortcuts[0] == realState && shortcuts[1] == lowerKey
 	// fmt.Println("...isShortcutKeyPressed=", ret, ret && !e.lastKeyWithShift, shortcuts)
 	if realState == 1 && shortcut == KSViEnSwitch {
@@ -168,7 +169,6 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 	if keyVal == IBusCapsLock {
 		return true, false
 	}
-
 
 	if e.config.DefaultInputMode == config.UsIM {
 		return true, false
@@ -198,7 +198,7 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 		}
 		config.SaveConfig(e.config, e.engineName)
 		e.showAuxToast(msg)
-		
+
 		e.propList = GetPropListByConfig(e.config, e.englishMode)
 		e.RegisterProperties(e.propList)
 		return true, true

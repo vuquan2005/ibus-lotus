@@ -294,10 +294,10 @@ func TestSurroundingTextReconstruction(t *testing.T) {
 	var cfg = config.DefaultCfg()
 	cfg.DefaultInputMode = config.SurroundingTextIM
 	inputMethod := bamboo.ParseInputMethod(cfg.InputMethodDefinitions, cfg.InputMethod)
-	
+
 	e := NewIbusLotusEngine(engineName, &cfg, fe, bamboo.NewEngine(inputMethod, cfg.Flags))
 	e.shouldEnqueuKeyStrokes = false
-	
+
 	// Simulate typing "hoang"
 	for _, c := range "hoang" {
 		e.ProcessKeyEvent(uint32(c), uint32(c), 0)
@@ -305,25 +305,25 @@ func TestSurroundingTextReconstruction(t *testing.T) {
 	if fe.commitText != "hoang" {
 		t.Errorf("Expected commitText to be 'hoang', got '%s'", fe.commitText)
 	}
-	
+
 	// Press Space to commit the word
 	e.ProcessKeyEvent(uint32(' '), uint32(' '), 0)
 	if fe.commitText != "hoang " {
 		t.Errorf("Expected commitText to be 'hoang ', got '%s'", fe.commitText)
 	}
-	
+
 	// Press Backspace
 	e.ProcessKeyEvent(0xff08, 0xff08, 0)
 	// We simulate the application deleting the space character
 	fe.commitText = "hoang"
-	
+
 	// The application calls SetSurroundingText
 	variant := dbus.MakeVariant([]interface{}{nil, nil, "hoang"})
 	e.SetSurroundingText(variant, 5, 5)
-	
+
 	// Type 'f' to add a tone mark
 	e.ProcessKeyEvent(uint32('f'), uint32('f'), 0)
-	
+
 	// Expected text on screen should be "hoàng"
 	if fe.commitText != "hoàng" {
 		t.Errorf("Expected commitText to be 'hoàng', got '%s'", fe.commitText)
@@ -336,19 +336,19 @@ func TestSurroundingTextMultipleBackspaces(t *testing.T) {
 	var cfg = config.DefaultCfg()
 	cfg.DefaultInputMode = config.SurroundingTextIM
 	inputMethod := bamboo.ParseInputMethod(cfg.InputMethodDefinitions, cfg.InputMethod)
-	
+
 	e := NewIbusLotusEngine(engineName, &cfg, fe, bamboo.NewEngine(inputMethod, cfg.Flags))
 	e.shouldEnqueuKeyStrokes = false
-	
+
 	// Simulate typing "Chào hoàng,"
 	// User presses Backspace to delete the comma
 	e.ProcessKeyEvent(0xff08, 0xff08, 0)
 	fe.commitText = "Chào hoàng"
-	
+
 	// Application calls SetSurroundingText
 	variant := dbus.MakeVariant([]interface{}{nil, nil, "Chào hoàng"})
 	e.SetSurroundingText(variant, 10, 10)
-	
+
 	// User presses Backspace again to delete 'g' (word is "hoàng")
 	ret, err := e.ProcessKeyEvent(0xff08, 0xff08, 0)
 	t.Logf("ProcessKeyEvent returned: %v, error: %v", ret, err)
@@ -359,9 +359,9 @@ func TestSurroundingTextMultipleBackspaces(t *testing.T) {
 		variant2 := dbus.MakeVariant([]interface{}{nil, nil, "Chào hoàn"})
 		e.SetSurroundingText(variant2, 9, 9)
 	}
-	
+
 	t.Logf("Resulting commitText after second backspace: %s", fe.commitText)
-	
+
 	// User types 'y' to make it "hoành"
 	e.ProcessKeyEvent(uint32('h'), uint32('h'), 0)
 	t.Logf("Resulting commitText after typing 'h': %s", fe.commitText)
