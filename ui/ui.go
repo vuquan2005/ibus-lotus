@@ -18,14 +18,18 @@ extern int openGUI(
 	char *allCSs,
 	int enableHwnd,
 	int enableWmClass,
-	int enableToast
+	int enableToast,
+	int enableAutoSwitch,
+	char *appMappings
 );
 */
 import "C"
 import (
 	"encoding/json"
+	"fmt"
 	"ibus-lotus/config"
 	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -57,13 +61,31 @@ func saveConfigOptions(flags C.uint, ibFlags C.uint, inputMethod *C.char, output
 }
 
 //export saveTrackingOptions
-func saveTrackingOptions(enableHwnd C.int, enableWmClass C.int, enableToast C.int) {
+func saveTrackingOptions(enableHwnd C.int, enableWmClass C.int, enableToast C.int, enableAutoSwitch C.int, appMappings *C.char) {
 	var (
 		cfg = config.LoadConfig(engineName)
 	)
 	cfg.EnableHwndTracking = (enableHwnd != 0)
 	cfg.EnableWmClassTracking = (enableWmClass != 0)
 	cfg.EnableFocusToast = (enableToast != 0)
+	cfg.EnableAutoSwitch = (enableAutoSwitch != 0)
+
+	mappingsStr := C.GoString(appMappings)
+	newMapping := make(map[string]int)
+	if mappingsStr != "" {
+		parts := strings.Split(mappingsStr, ",")
+		for _, part := range parts {
+			kv := strings.Split(part, ":")
+			if len(kv) == 2 {
+				val, err := strconv.Atoi(kv[1])
+				if err == nil {
+					newMapping[kv[0]] = val
+				}
+			}
+		}
+	}
+	cfg.InputModeMapping = newMapping
+
 	config.SaveConfig(cfg, engineName)
 }
 
@@ -157,6 +179,12 @@ func OpenGUI(engName string) {
 	allInputMethods := strings.Join(ims, ",")
 	allOutputCharsets := strings.Join(bamboo.GetCharsetNames(), ",")
 
+	var mappings []string
+	for k, v := range cfg.InputModeMapping {
+		mappings = append(mappings, fmt.Sprintf("%s:%d", k, v))
+	}
+	allMappingsStr := strings.Join(mappings, ",")
+
 	os.Setenv("GTK_IM_MODULE", "gtk-im-context-simple")
 	C.openGUI(
 		C.guint(cfg.Flags),
@@ -173,5 +201,7 @@ func OpenGUI(engName string) {
 		boolToInt(cfg.EnableHwndTracking),
 		boolToInt(cfg.EnableWmClassTracking),
 		boolToInt(cfg.EnableFocusToast),
+		boolToInt(cfg.EnableAutoSwitch),
+		C.CString(allMappingsStr),
 	)
 }

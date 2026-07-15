@@ -203,9 +203,7 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 		}
 
 		if e.config.EnableHwndTracking && e.lastFocusedHwnd != "" {
-			e.hwndMutex.Lock()
-			e.hwndModes[e.lastFocusedHwnd] = newMode
-			e.hwndMutex.Unlock()
+			e.setHwndMode(e.lastFocusedHwnd, newMode)
 		} else if e.config.EnableWmClassTracking && e.getWmClass() != "" {
 			e.config.InputModeMapping[e.getWmClass()] = newMode
 			config.SaveConfig(e.config, e.engineName)
@@ -375,9 +373,7 @@ func (e *IBusLotusEngine) commitInputModeCandidate() {
 	var im = e.inputModeLookupTable.CursorPos + 1
 
 	if e.config.EnableHwndTracking && e.lastFocusedHwnd != "" {
-		e.hwndMutex.Lock()
-		e.hwndModes[e.lastFocusedHwnd] = int(im)
-		e.hwndMutex.Unlock()
+		e.setHwndMode(e.lastFocusedHwnd, int(im))
 	}
 
 	if e.getWmClass() == "" {
@@ -577,6 +573,9 @@ func (e *IBusLotusEngine) getLatestWmClass() string {
 }
 
 func (e *IBusLotusEngine) getLatestWindowInfo() WindowInfo {
+	if !e.config.EnableAutoSwitch {
+		return WindowInfo{}
+	}
 	var info WindowInfo
 	var err error
 	if isWayland {
@@ -587,6 +586,41 @@ func (e *IBusLotusEngine) getLatestWindowInfo() WindowInfo {
 	}
 	info.Class = strings.Replace(info.Class, "\"", "", -1)
 	return info
+}
+
+func (e *IBusLotusEngine) setHwndMode(hwnd string, mode int) {
+	e.hwndMutex.Lock()
+	defer e.hwndMutex.Unlock()
+
+	// Check if already exists
+	_, exists := e.hwndModes[hwnd]
+	if !exists {
+		// If map is too large, evict the oldest one
+		if len(e.hwndModes) >= 100 {
+			if len(e.hwndFocusOrder) > 0 {
+				oldest := e.hwndFocusOrder[0]
+				delete(e.hwndModes, oldest)
+				e.hwndFocusOrder = e.hwndFocusOrder[1:]
+			} else {
+				// Fallback: delete a random key
+				for k := range e.hwndModes {
+					delete(e.hwndModes, k)
+					break
+				}
+			}
+		}
+		e.hwndFocusOrder = append(e.hwndFocusOrder, hwnd)
+	} else {
+		// Move to the end of focus order
+		for i, h := range e.hwndFocusOrder {
+			if h == hwnd {
+				e.hwndFocusOrder = append(e.hwndFocusOrder[:i], e.hwndFocusOrder[i+1:]...)
+				break
+			}
+		}
+		e.hwndFocusOrder = append(e.hwndFocusOrder, hwnd)
+	}
+	e.hwndModes[hwnd] = mode
 }
 
 func (e *IBusLotusEngine) checkInputMode(im int) bool {

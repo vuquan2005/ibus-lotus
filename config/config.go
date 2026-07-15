@@ -71,6 +71,7 @@ type Config struct {
 	EnableHwndTracking     bool
 	EnableWmClassTracking    bool
 	EnableFocusToast       bool
+	EnableAutoSwitch       bool
 }
 
 func (c *Config) GetFlatShortcuts() [10]uint32 {
@@ -123,6 +124,7 @@ func DefaultCfg() Config {
 		EnableHwndTracking:    true,
 		EnableWmClassTracking: true,
 		EnableFocusToast:      true,
+		EnableAutoSwitch:      true,
 	}
 }
 
