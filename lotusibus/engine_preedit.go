@@ -196,6 +196,7 @@ func (e *IBusLotusEngine) commitText(str string) {
 	var now = time.Now()
 	e.lastCommitText = now.UnixNano()
 	e.CommitText(ibus.NewText(e.encodeText(str)))
+	e.wordCompleted = true
 }
 
 func (e *IBusLotusEngine) getVnSeq() string {

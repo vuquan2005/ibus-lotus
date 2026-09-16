@@ -171,9 +171,6 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 		return true, false
 	}
 
-	if e.config.DefaultInputMode == config.UsIM {
-		return true, false
-	}
 	if e.isShortcutKeyPressed(keyVal, state, KSRestoreKeyStrokes) {
 		// fmt.Println("===== Process restoring key strokes")
 		e.shouldRestoreKeyStrokes = true
@@ -186,14 +183,13 @@ func (e *IBusLotusEngine) processShortcutKey(keyVal, keyCode, state uint32) (boo
 		e.resetBuffer()
 		var msg string
 		var newMode int
-		if e.englishMode {
+		currentMode := e.getInputMode()
+		if currentMode == config.UsIM {
 			e.englishMode = false
-			e.config.DefaultInputMode = config.PreeditIM
 			newMode = config.PreeditIM
 			msg = "🟡 Pre-edit"
-		} else if e.config.DefaultInputMode == config.PreeditIM {
+		} else if currentMode == config.PreeditIM {
 			e.englishMode = false
-			e.config.DefaultInputMode = config.SurroundingTextIM
 			newMode = config.SurroundingTextIM
 			msg = "🟢 Surrounding Text"
 		} else {
