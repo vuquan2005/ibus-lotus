@@ -36,7 +36,25 @@ import (
 	"github.com/BambooEngine/bamboo-core"
 )
 
-var engineName string
+var (
+	engineName         string
+	focusInspectorFunc func() string
+)
+
+func SetFocusInspector(fn func() string) {
+	focusInspectorFunc = fn
+}
+
+//export getFocusWindowClass
+func getFocusWindowClass() *C.char {
+	if focusInspectorFunc != nil {
+		cls := focusInspectorFunc()
+		if cls != "" {
+			return C.CString(cls)
+		}
+	}
+	return C.CString("")
+}
 
 //export saveFlags
 func saveFlags(flags C.guint) {

@@ -403,6 +403,53 @@ static void on_btn_add_rule_clicked(GtkButton *button, gpointer user_data) {
   gtk_list_store_set(store, &iter, 0, "nhap.ten.app", 1, "Tiếng Việt (Pre-edit)", -1);
 }
 
+extern char *getFocusWindowClass(void);
+
+typedef struct {
+  GtkListStore *store;
+  GtkWidget *btn_capture;
+  int countdown;
+} CaptureData;
+
+static gboolean on_capture_focus_timer(gpointer user_data) {
+  CaptureData *data = (CaptureData *)user_data;
+  data->countdown--;
+  if (data->countdown > 0) {
+    char buf[128];
+    snprintf(buf, sizeof(buf), "Chuyển sang ứng dụng cần bắt (%ds)...", data->countdown);
+    gtk_button_set_label(GTK_BUTTON(data->btn_capture), buf);
+    return G_SOURCE_CONTINUE;
+  }
+
+  char *cls = getFocusWindowClass();
+  if (cls && strlen(cls) > 0 && strcmp(cls, "ibus-lotus") != 0 && strcmp(cls, "ibus-engine-lotus") != 0) {
+    GtkTreeIter iter;
+    gtk_list_store_append(data->store, &iter);
+    gtk_list_store_set(data->store, &iter, 0, cls, 1, "Tiếng Việt (Pre-edit)", -1);
+    free(cls);
+  } else if (cls) {
+    free(cls);
+  }
+
+  gtk_button_set_label(GTK_BUTTON(data->btn_capture), "🎯 Bắt ứng dụng (2s)");
+  gtk_widget_set_sensitive(data->btn_capture, TRUE);
+  g_free(data);
+  return G_SOURCE_REMOVE;
+}
+
+static void on_btn_capture_clicked(GtkButton *button, gpointer user_data) {
+  GtkListStore *store = GTK_LIST_STORE(user_data);
+  gtk_widget_set_sensitive(GTK_WIDGET(button), FALSE);
+  gtk_button_set_label(button, "Chuyển sang ứng dụng cần bắt (2s)...");
+
+  CaptureData *data = g_new0(CaptureData, 1);
+  data->store = store;
+  data->btn_capture = GTK_WIDGET(button);
+  data->countdown = 2;
+
+  g_timeout_add_seconds(1, on_capture_focus_timer, data);
+}
+
 static void on_btn_delete_rule_clicked(GtkButton *button, gpointer user_data) {
   GtkTreeView *treeview = GTK_TREE_VIEW(user_data);
   GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
@@ -837,6 +884,10 @@ int openGUI(
   GtkWidget *btn_delete = gtk_button_new_with_label("Xóa quy tắc");
   g_signal_connect(btn_delete, "clicked", G_CALLBACK(on_btn_delete_rule_clicked), treeview);
   gtk_box_pack_start(GTK_BOX(btn_box), btn_delete, FALSE, FALSE, 0);
+
+  GtkWidget *btn_capture = gtk_button_new_with_label("🎯 Bắt ứng dụng (2s)");
+  g_signal_connect(btn_capture, "clicked", G_CALLBACK(on_btn_capture_clicked), list_store);
+  gtk_box_pack_start(GTK_BOX(btn_box), btn_capture, FALSE, FALSE, 0);
 
   gtk_box_pack_start(GTK_BOX(card_list), btn_box, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(tracking_vbox), card_list, TRUE, TRUE, 0);

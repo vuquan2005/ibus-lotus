@@ -15,24 +15,49 @@ type WindowInfo struct {
 	Class string
 }
 
+func GetFocusWindowInfo() (WindowInfo, error) {
+	return wlGetFocusWindowInfo()
+}
+
 func wlGetFocusWindowInfo() (WindowInfo, error) {
 	if isGnome {
 		info, err := gnomeGetFocusWindowInfo()
+		if err == nil && info.Class != "" {
+			return info, nil
+		}
 		if err != nil {
 			log.Printf("[DEBUG] Failed to get GNOME focus window info: %v", err)
-			return WindowInfo{}, err
 		}
-		return info, nil
 	}
 	if isKDE {
 		info, err := kdeGetFocusWindowInfo()
+		if err == nil && info.Class != "" {
+			return info, nil
+		}
 		if err != nil {
 			log.Printf("[DEBUG] Failed to get KDE focus window info: %v", err)
-			return WindowInfo{}, err
 		}
-		return info, nil
 	}
-	return WindowInfo{}, nil
+	if isHyprland {
+		info, err := hyprlandGetFocusWindowInfo()
+		if err == nil && info.Class != "" {
+			return info, nil
+		}
+		if err != nil {
+			log.Printf("[DEBUG] Failed to get Hyprland focus window info: %v", err)
+		}
+	}
+	if isSway {
+		info, err := swayGetFocusWindowInfo()
+		if err == nil && info.Class != "" {
+			return info, nil
+		}
+		if err != nil {
+			log.Printf("[DEBUG] Failed to get Sway focus window info: %v", err)
+		}
+	}
+	// Fallback to X11 xprop/xdotool if available
+	return x11GetFocusWindowInfo()
 }
 
 func wlGetFocusWindowClass() (string, error) {
@@ -67,16 +92,16 @@ func gnomeGetFocusWindowInfo() (WindowInfo, error) {
 	}
 
 	var data struct {
-		WmClass string      `json:"wm_class"`
-		ID      interface{} `json:"id"`
+		WmClass string          `json:"wm_class"`
+		ID      json.RawMessage `json:"id"`
 	}
 	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 		return WindowInfo{}, err
 	}
 
-	idStr := ""
-	if data.ID != nil {
-		idStr = fmt.Sprintf("%v", data.ID)
+	idStr := strings.Trim(string(data.ID), "\"")
+	if idStr == "null" {
+		idStr = ""
 	}
 
 	return WindowInfo{
@@ -121,4 +146,115 @@ func kdeGetFocusWindowClass() (string, error) {
 		return "", err
 	}
 	return info.Class, nil
+}
+
+func hyprlandGetFocusWindowInfo() (WindowInfo, error) {
+	cmd := exec.Command("hyprctl", "activewindow", "-j")
+	out, err := cmd.Output()
+	if err != nil {
+		return WindowInfo{}, err
+	}
+	var data struct {
+		Address      string `json:"address"`
+		Class        string `json:"class"`
+		InitialClass string `json:"initialClass"`
+	}
+	if err := json.Unmarshal(out, &data); err != nil {
+		return WindowInfo{}, err
+	}
+	cls := data.Class
+	if cls == "" {
+		cls = data.InitialClass
+	}
+	return WindowInfo{
+		ID:    data.Address,
+		Class: strings.TrimSpace(cls),
+	}, nil
+}
+
+func swayGetFocusWindowInfo() (WindowInfo, error) {
+	cmd := exec.Command("swaymsg", "-t", "get_tree")
+	out, err := cmd.Output()
+	if err != nil {
+		return WindowInfo{}, err
+	}
+
+	type node struct {
+		ID               int64   `json:"id"`
+		Focused          bool    `json:"focused"`
+		AppID            *string `json:"app_id"`
+		WindowProperties struct {
+			Class string `json:"class"`
+		} `json:"window_properties"`
+		Nodes         []node `json:"nodes"`
+		FloatingNodes []node `json:"floating_nodes"`
+	}
+
+	var root node
+	if err := json.Unmarshal(out, &root); err != nil {
+		return WindowInfo{}, err
+	}
+
+	var findFocused func(n node) (WindowInfo, bool)
+	findFocused = func(n node) (WindowInfo, bool) {
+		if n.Focused {
+			cls := ""
+			if n.AppID != nil && *n.AppID != "" {
+				cls = *n.AppID
+			} else {
+				cls = n.WindowProperties.Class
+			}
+			return WindowInfo{
+				ID:    fmt.Sprintf("%d", n.ID),
+				Class: strings.TrimSpace(cls),
+			}, true
+		}
+		for _, child := range n.Nodes {
+			if res, ok := findFocused(child); ok {
+				return res, true
+			}
+		}
+		for _, child := range n.FloatingNodes {
+			if res, ok := findFocused(child); ok {
+				return res, true
+			}
+		}
+		return WindowInfo{}, false
+	}
+
+	info, found := findFocused(root)
+	if !found {
+		return WindowInfo{}, fmt.Errorf("no focused window found in sway tree")
+	}
+	return info, nil
+}
+
+func x11GetFocusWindowInfo() (WindowInfo, error) {
+	cmd := exec.Command("xdotool", "getactivewindow")
+	out, err := cmd.Output()
+	if err != nil {
+		return WindowInfo{}, err
+	}
+	id := strings.TrimSpace(string(out))
+	if id == "" {
+		return WindowInfo{}, fmt.Errorf("empty window id")
+	}
+
+	cmdClass := exec.Command("xprop", "-id", id, "WM_CLASS")
+	outClass, err := cmdClass.Output()
+	if err != nil {
+		return WindowInfo{ID: id}, nil
+	}
+	// Format: WM_CLASS(STRING) = "instance", "Class"
+	str := string(outClass)
+	parts := strings.Split(str, "=")
+	if len(parts) >= 2 {
+		val := strings.TrimSpace(parts[1])
+		classes := strings.Split(val, ",")
+		if len(classes) > 0 {
+			cls := strings.Trim(strings.TrimSpace(classes[len(classes)-1]), "\"")
+			return WindowInfo{ID: id, Class: cls}, nil
+		}
+	}
+	return WindowInfo{ID: id}, nil
 }
